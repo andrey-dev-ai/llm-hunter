@@ -1,0 +1,17 @@
+{
+  "name": "llm-hunter",
+  "version": "0.1.0",
+  "description": "Browser arcade game: vibe coder vs AI tools. Vampire Survivors style.",
+  "type": "module",
+  "scripts": {
+    "dev": "esbuild src/main.js --bundle --outfile=public/dist/bundle.js --servedir=public --format=esm --watch",
+    "build": "esbuild src/main.js --bundle --outfile=public/dist/bundle.js --format=esm --minify",
+    "preview": "npx serve public"
+  },
+  "keywords": ["game", "browser-game", "llm", "vibe-coding", "html5-canvas", "arcade"],
+  "author": "andrey-dev-ai",
+  "license": "MIT",
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}
