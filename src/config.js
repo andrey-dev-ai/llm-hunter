@@ -20,6 +20,8 @@ export const CONFIG = {
     OVERLAY_BG: 'rgba(17,17,27,0.92)',
     ACCENT: '#89b4fa',
     WARNING: '#f9e2af',
+    IDENTITY_GREEN: '#50fa7b',
+    IDENTITY_RED: '#ff5555',
   },
 
   PLAYER: {

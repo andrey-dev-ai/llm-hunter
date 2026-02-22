@@ -57,7 +57,7 @@ export class UI {
       const barY = 34;
       ctx.fillStyle = CONFIG.COLORS.HUD_BORDER;
       ctx.fillRect(barX, barY, barW, barH);
-      ctx.fillStyle = CONFIG.COLORS.ACCENT;
+      ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
       ctx.fillRect(barX, barY, barW * waveProgress, barH);
     }
   }
@@ -70,11 +70,19 @@ export class UI {
     ctx.fillStyle = CONFIG.COLORS.OVERLAY_BG;
     ctx.fillRect(0, 0, w, h);
 
-    // Title
-    ctx.fillStyle = CONFIG.COLORS.TEXT;
+    // Title — dual color identity
     ctx.font = 'bold 48px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(CONFIG.GAME.TITLE, w / 2, h / 2 - 60);
+    const titleY = h / 2 - 60;
+    const llmW = ctx.measureText('LLM ').width;
+    const hunterW = ctx.measureText('Hunter').width;
+    const titleStartX = w / 2 - (llmW + hunterW) / 2;
+    ctx.textAlign = 'left';
+    ctx.fillStyle = CONFIG.COLORS.ACCENT;
+    ctx.fillText('LLM ', titleStartX, titleY);
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.fillText('Hunter', titleStartX + llmW, titleY);
+    ctx.textAlign = 'center';
 
     // Subtitle
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
@@ -86,11 +94,13 @@ export class UI {
     ctx.font = '16px monospace';
     ctx.fillText('while (alive) { shoot(code); }', w / 2, h / 2 + 20);
 
-    // Start prompt (blinking)
+    // Start prompt (blinking green cursor)
     if (Math.sin(Date.now() / 500) > 0) {
       ctx.fillStyle = CONFIG.COLORS.TEXT;
       ctx.font = '18px monospace';
-      ctx.fillText('> ' + CONFIG.GAME.START_TEXT + ' _', w / 2, h / 2 + 80);
+      ctx.fillText('> ' + CONFIG.GAME.START_TEXT, w / 2 - 5, h / 2 + 80);
+      ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+      ctx.fillText(' _', w / 2 + ctx.measureText('> ' + CONFIG.GAME.START_TEXT).width / 2 - 5, h / 2 + 80);
     }
 
     // Controls hint

@@ -417,9 +417,9 @@ function update(dt) {
     }
   }
 
-  // Enemies vs player (with knockback)
+  // Enemies vs player (with knockback) — skip spawning enemies
   for (const e of enemies) {
-    if (!e.alive) continue;
+    if (!e.alive || e.isSpawning) continue;
     if (circlesCollide(e, player)) {
       if (player.takeDamage(1)) {
         addParticle(player.x, player.y, '#f38ba8', 8);

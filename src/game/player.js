@@ -112,6 +112,15 @@ export class Player {
     ctx.save();
     ctx.translate(this.x, this.y + bob);
 
+    // Green identity glow
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.beginPath();
+    ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
     // Head (circle)
     ctx.fillStyle = CONFIG.COLORS.PLAYER_SKIN;
     ctx.beginPath();

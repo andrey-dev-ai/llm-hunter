@@ -1,6 +1,31 @@
 import { CONFIG } from '../config.js';
 import { normalize, subtract, distance } from '../utils/vector.js';
 
+// Shape drawing helpers
+function drawHexagon(ctx, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI / 3) * i - Math.PI / 2;
+    const x = Math.cos(angle) * r;
+    const y = Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
+function drawOctagon(ctx, r) {
+  ctx.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const angle = (Math.PI / 4) * i - Math.PI / 8;
+    const x = Math.cos(angle) * r;
+    const y = Math.sin(angle) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+}
+
 export class Enemy {
   constructor(x, y, data) {
     this.x = x;
@@ -14,6 +39,7 @@ export class Enemy {
     this.color = data.color || '#666';
     this.label = data.label || data.name;
     this.behavior = data.behavior || 'chase';
+    this.shape = data.shape || 'circle';
     this.alive = true;
     this._hitFlash = 0;
     this._phase = Math.random() * Math.PI * 2;
@@ -23,6 +49,8 @@ export class Enemy {
     this._dashDuration = 0;
     // Orbit direction (1 or -1)
     this._orbitDir = Math.random() > 0.5 ? 1 : -1;
+    // Spawn animation
+    this._spawnTimer = 0.3;
   }
 
   takeDamage(amount) {
@@ -34,6 +62,13 @@ export class Enemy {
   }
 
   update(dt, playerPos) {
+    // Spawn animation — don't move or deal damage
+    if (this._spawnTimer > 0) {
+      this._spawnTimer -= dt;
+      this._phase += dt * 2;
+      return;
+    }
+
     const dir = normalize(subtract(playerPos, this));
 
     switch (this.behavior) {
@@ -83,36 +118,98 @@ export class Enemy {
     this._phase += dt * 2;
   }
 
+  get isSpawning() {
+    return this._spawnTimer > 0;
+  }
+
+  _drawBody(ctx, r) {
+    switch (this.shape) {
+      case 'roundRect': {
+        const size = r * 1.6;
+        ctx.beginPath();
+        ctx.roundRect(-size / 2, -size / 2, size, size, r * 0.3);
+        break;
+      }
+      case 'hexagon':
+        drawHexagon(ctx, r);
+        break;
+      case 'octagon':
+        drawOctagon(ctx, r);
+        break;
+      default:
+        ctx.beginPath();
+        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        break;
+    }
+  }
+
   render(ctx) {
     const pulse = 1 + Math.sin(this._phase) * 0.05;
-    const r = this.radius * pulse;
+    let r = this.radius * pulse;
+
+    // Spawn animation
+    let spawnAlpha = 1;
+    let spawnScale = 1;
+    if (this._spawnTimer > 0) {
+      const t = 1 - (this._spawnTimer / 0.3); // 0→1 over 300ms
+      if (t < 0.33) {
+        // Phase 1: scale 0→1.2, alpha 0→0.8
+        const p = t / 0.33;
+        const eased = 1 + 2.7 * Math.pow(p - 1, 3) + 1.7 * Math.pow(p - 1, 2);
+        spawnScale = eased * 1.2;
+        spawnAlpha = p * 0.8;
+      } else {
+        // Phase 2: scale 1.2→1.0, alpha 0.8→1.0
+        const p = (t - 0.33) / 0.67;
+        spawnScale = 1.2 - 0.2 * p;
+        spawnAlpha = 0.8 + 0.2 * p;
+      }
+      r *= spawnScale;
+    }
 
     ctx.save();
     ctx.translate(this.x, this.y);
+    ctx.globalAlpha = spawnAlpha;
+
+    // Spawn glow ring
+    if (this._spawnTimer > 0) {
+      const t = 1 - (this._spawnTimer / 0.3);
+      const glowR = this.radius * (1 + t * 1.5);
+      const glowAlpha = 0.4 * (1 - t);
+      ctx.save();
+      ctx.globalAlpha = glowAlpha * spawnAlpha;
+      ctx.strokeStyle = this.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.3)';
-    ctx.beginPath();
-    ctx.ellipse(2, 4, r, r * 0.6, 0, 0, Math.PI * 2);
+    ctx.save();
+    ctx.globalAlpha = 0.3 * spawnAlpha;
+    ctx.fillStyle = 'rgba(0,0,0,1)';
+    ctx.translate(2, 4);
+    ctx.scale(1, 0.6);
+    this._drawBody(ctx, r);
     ctx.fill();
+    ctx.restore();
 
-    // Body circle
+    // Body
     ctx.fillStyle = this._hitFlash > 0 ? '#fff' : this.color;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    this._drawBody(ctx, r);
     ctx.fill();
 
-    // Border / HP arc
+    // Border / HP arc (always circle overlay for readability)
     const hpRatio = this.hp / this.maxHp;
     if (hpRatio < 1) {
-      // Background arc (full circle)
       ctx.strokeStyle = 'rgba(255,255,255,0.1)';
       ctx.lineWidth = 4;
       ctx.beginPath();
       ctx.arc(0, 0, r, 0, Math.PI * 2);
       ctx.stroke();
 
-      // HP arc (colored, from top clockwise)
       const startAngle = -Math.PI / 2;
       const endAngle = startAngle + Math.PI * 2 * hpRatio;
       ctx.strokeStyle = hpRatio > 0.5 ? '#a6e3a1' : hpRatio > 0.25 ? '#f9e2af' : '#f38ba8';
@@ -121,11 +218,9 @@ export class Enemy {
       ctx.arc(0, 0, r, startAngle, endAngle);
       ctx.stroke();
     } else {
-      // Full HP — subtle border
       ctx.strokeStyle = 'rgba(255,255,255,0.15)';
       ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      this._drawBody(ctx, r);
       ctx.stroke();
     }
 
