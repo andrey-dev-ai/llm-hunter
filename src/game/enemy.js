@@ -227,7 +227,7 @@ export class Enemy {
     // Label
     const fontSize = Math.max(9, Math.min(14, r * 0.7));
     ctx.fillStyle = '#fff';
-    ctx.font = `bold ${fontSize}px sans-serif`;
+    ctx.font = `bold ${fontSize}px ${CONFIG.FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.label, 0, 0);

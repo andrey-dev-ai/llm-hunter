@@ -588,7 +588,7 @@ function render() {
     if (!flashPhase) {
       const fontSize = Math.max(9, Math.min(14, da.radius * 0.7));
       renderer.ctx.fillStyle = '#fff';
-      renderer.ctx.font = `bold ${fontSize}px sans-serif`;
+      renderer.ctx.font = `bold ${fontSize}px ${CONFIG.FONT}`;
       renderer.ctx.textAlign = 'center';
       renderer.ctx.textBaseline = 'middle';
       renderer.ctx.fillText(da.label, 0, 0);
@@ -619,7 +619,7 @@ function render() {
     renderer.ctx.save();
     renderer.ctx.globalAlpha = Math.min(1, ft.life * 2);
     renderer.ctx.fillStyle = ft.color;
-    renderer.ctx.font = `bold ${ft.size}px monospace`;
+    renderer.ctx.font = `bold ${ft.size}px ${CONFIG.FONT}`;
     renderer.ctx.textAlign = 'center';
     renderer.ctx.textBaseline = 'middle';
     renderer.ctx.fillText(ft.text, ft.x, ft.y);
@@ -680,12 +680,12 @@ function drawUpgradeScreen() {
 
   // Title
   ctx.fillStyle = CONFIG.COLORS.TEXT;
-  ctx.font = 'bold 28px monospace';
+  ctx.font = `bold 28px ${CONFIG.FONT}`;
   ctx.textAlign = 'center';
   ctx.fillText('CHOOSE UPGRADE', w / 2, h / 2 - 130);
 
   ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-  ctx.font = '14px monospace';
+  ctx.font = `14px ${CONFIG.FONT}`;
   ctx.fillText('// pick one to continue', w / 2, h / 2 - 100);
 
   // Cards
@@ -712,23 +712,23 @@ function drawUpgradeScreen() {
 
     // Icon
     ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : CONFIG.COLORS.TEXT;
-    ctx.font = 'bold 28px monospace';
+    ctx.font = `bold 28px ${CONFIG.FONT}`;
     ctx.textAlign = 'center';
     ctx.fillText(up.icon, cx + cardW / 2, startY + 50);
 
     // Name
     ctx.fillStyle = CONFIG.COLORS.TEXT;
-    ctx.font = 'bold 13px monospace';
+    ctx.font = `bold 13px ${CONFIG.FONT}`;
     ctx.fillText(up.name, cx + cardW / 2, startY + 90);
 
     // Description
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-    ctx.font = '12px monospace';
+    ctx.font = `12px ${CONFIG.FONT}`;
     ctx.fillText(up.description, cx + cardW / 2, startY + 120);
 
     // Number hint
     ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : 'rgba(255,255,255,0.2)';
-    ctx.font = '11px monospace';
+    ctx.font = `11px ${CONFIG.FONT}`;
     ctx.fillText(`[${i + 1}]`, cx + cardW / 2, startY + cardH - 15);
   }
 }

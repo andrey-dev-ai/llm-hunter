@@ -84,7 +84,7 @@ export class Renderer {
     this.ctx.restore();
   }
 
-  drawText(text, x, y, { color = CONFIG.COLORS.TEXT, size = 16, align = 'left', font = 'monospace' } = {}) {
+  drawText(text, x, y, { color = CONFIG.COLORS.TEXT, size = 16, align = 'left', font = CONFIG.FONT } = {}) {
     this.ctx.fillStyle = color;
     this.ctx.font = `${size}px ${font}`;
     this.ctx.textAlign = align;

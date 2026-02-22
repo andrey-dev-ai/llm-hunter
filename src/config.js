@@ -24,6 +24,8 @@ export const CONFIG = {
     IDENTITY_RED: '#ff5555',
   },
 
+  FONT: "'JetBrains Mono', monospace",
+
   PLAYER: {
     RADIUS: 18,
     MAX_HP: 8,

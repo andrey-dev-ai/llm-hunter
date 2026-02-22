@@ -182,7 +182,7 @@ export class Boss {
 
     // Label
     ctx.fillStyle = '#fff';
-    ctx.font = `bold 18px sans-serif`;
+    ctx.font = `bold 18px ${CONFIG.FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.label, 0, 0);
@@ -207,7 +207,7 @@ export class Boss {
       ctx.roundRect(-tw / 2, -r - 40, tw, 22, 6);
       ctx.fill();
       ctx.fillStyle = '#fff';
-      ctx.font = this.enraged ? 'bold 12px monospace' : '12px monospace';
+      ctx.font = this.enraged ? `bold 12px ${CONFIG.FONT}` : `12px ${CONFIG.FONT}`;
       ctx.fillText(this._currentPhrase, 0, -r - 26);
     }
 
@@ -224,7 +224,7 @@ export class Boss {
       ctx.fill();
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#ef4444';
-      ctx.font = 'bold 14px monospace';
+      ctx.font = `bold 14px ${CONFIG.FONT}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(p.text, 0, 0);

@@ -1,5 +1,7 @@
 import { CONFIG } from '../config.js';
 
+const F = CONFIG.FONT;
+
 /**
  * HUD, overlays, and UI elements
  */
@@ -39,13 +41,13 @@ export class UI {
 
     // Score
     ctx.fillStyle = CONFIG.COLORS.TEXT;
-    ctx.font = 'bold 18px monospace';
+    ctx.font = `bold 18px ${F}`;
     ctx.textAlign = 'center';
     ctx.fillText(`Score: ${score}`, w / 2, 22);
 
     // Wave indicator
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-    ctx.font = '14px monospace';
+    ctx.font = `14px ${F}`;
     ctx.textAlign = 'right';
     ctx.fillText(`Wave ${waveNum}/${waveTotal}`, w - 20, 22);
 
@@ -71,7 +73,7 @@ export class UI {
     ctx.fillRect(0, 0, w, h);
 
     // Title — dual color identity
-    ctx.font = 'bold 48px monospace';
+    ctx.font = `bold 48px ${F}`;
     ctx.textAlign = 'center';
     const titleY = h / 2 - 60;
     const llmW = ctx.measureText('LLM ').width;
@@ -86,18 +88,18 @@ export class UI {
 
     // Subtitle
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-    ctx.font = '20px monospace';
+    ctx.font = `20px ${F}`;
     ctx.fillText(CONFIG.GAME.SUBTITLE, w / 2, h / 2 - 20);
 
     // Code decoration
     ctx.fillStyle = '#e06c75';
-    ctx.font = '16px monospace';
+    ctx.font = `16px ${F}`;
     ctx.fillText('while (alive) { shoot(code); }', w / 2, h / 2 + 20);
 
     // Start prompt (blinking green cursor)
     if (Math.sin(Date.now() / 500) > 0) {
       ctx.fillStyle = CONFIG.COLORS.TEXT;
-      ctx.font = '18px monospace';
+      ctx.font = `18px ${F}`;
       ctx.fillText('> ' + CONFIG.GAME.START_TEXT, w / 2 - 5, h / 2 + 80);
       ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
       ctx.fillText(' _', w / 2 + ctx.measureText('> ' + CONFIG.GAME.START_TEXT).width / 2 - 5, h / 2 + 80);
@@ -105,13 +107,13 @@ export class UI {
 
     // Controls hint
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-    ctx.font = '14px monospace';
+    ctx.font = `14px ${F}`;
     ctx.fillText('Mouse = Move  |  Auto-fire = ON', w / 2, h / 2 + 130);
 
     // Mobile warning
     if (isMobile) {
       ctx.fillStyle = '#ef4444';
-      ctx.font = 'bold 14px monospace';
+      ctx.font = `bold 14px ${F}`;
       ctx.fillText('Best played on desktop with mouse!', w / 2, h / 2 + 160);
     }
   }
@@ -126,30 +128,30 @@ export class UI {
 
     // Death message
     ctx.fillStyle = CONFIG.COLORS.HP_LOW;
-    ctx.font = 'bold 16px monospace';
+    ctx.font = `bold 16px ${F}`;
     ctx.textAlign = 'center';
     ctx.fillText('// ' + CONFIG.GAME.DEATH_MESSAGE, w / 2, h / 2 - 110);
 
     // Game Over
     ctx.fillStyle = CONFIG.COLORS.TEXT;
-    ctx.font = 'bold 42px monospace';
+    ctx.font = `bold 42px ${F}`;
     ctx.fillText('GAME OVER', w / 2, h / 2 - 60);
 
     // Score
-    ctx.font = '24px monospace';
+    ctx.font = `24px ${F}`;
     ctx.fillText(`Score: ${score}`, w / 2, h / 2 - 15);
 
     // High score
     if (highScore > 0) {
       ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-      ctx.font = '16px monospace';
+      ctx.font = `16px ${F}`;
       ctx.fillText(`Best: ${highScore}`, w / 2, h / 2 + 15);
     }
 
     // New high score!
     if (score >= highScore && score > 0) {
       ctx.fillStyle = CONFIG.COLORS.WARNING;
-      ctx.font = 'bold 16px monospace';
+      ctx.font = `bold 16px ${F}`;
       ctx.fillText('NEW HIGH SCORE!', w / 2, h / 2 + 40);
     }
 
@@ -157,7 +159,7 @@ export class UI {
     if (stats) {
       const sy = h / 2 + 65;
       ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-      ctx.font = '13px monospace';
+      ctx.font = `13px ${F}`;
       const statLine = `Kills: ${stats.kills}  |  Waves: ${stats.wavesCleared}  |  Powerups: ${stats.powerups}`;
       ctx.fillText(statLine, w / 2, sy);
     }
@@ -165,7 +167,7 @@ export class UI {
     // Restart prompt
     if (Math.sin(Date.now() / 500) > 0) {
       ctx.fillStyle = CONFIG.COLORS.TEXT;
-      ctx.font = '18px monospace';
+      ctx.font = `18px ${F}`;
       ctx.fillText('> Click to restart _', w / 2, h / 2 + 110);
     }
   }
@@ -178,7 +180,7 @@ export class UI {
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.fillStyle = CONFIG.COLORS.TEXT;
-    ctx.font = 'bold 32px monospace';
+    ctx.font = `bold 32px ${F}`;
     ctx.textAlign = 'center';
     ctx.fillText(text, w / 2, h / 2 - 20);
     ctx.restore();
@@ -196,11 +198,11 @@ export class UI {
     ctx.fillRect(0, 0, w, h);
 
     ctx.fillStyle = '#ef4444';
-    ctx.font = 'bold 36px monospace';
+    ctx.font = `bold 36px ${F}`;
     ctx.textAlign = 'center';
     ctx.fillText('WARNING: BOSS INCOMING', w / 2, h / 2 - 20);
 
-    ctx.font = '18px monospace';
+    ctx.font = `18px ${F}`;
     ctx.fillText('ChatGPT has entered the chat', w / 2, h / 2 + 20);
 
     ctx.restore();
@@ -215,33 +217,33 @@ export class UI {
     ctx.fillRect(0, 0, w, h);
 
     ctx.fillStyle = CONFIG.COLORS.HP_FULL;
-    ctx.font = 'bold 16px monospace';
+    ctx.font = `bold 16px ${F}`;
     ctx.textAlign = 'center';
     ctx.fillText('// git push --force', w / 2, h / 2 - 110);
 
     ctx.fillStyle = CONFIG.COLORS.TEXT;
-    ctx.font = 'bold 42px monospace';
+    ctx.font = `bold 42px ${F}`;
     ctx.fillText('LEVEL COMPLETE!', w / 2, h / 2 - 60);
 
-    ctx.font = '24px monospace';
+    ctx.font = `24px ${F}`;
     ctx.fillText(`Score: ${score}`, w / 2, h / 2 - 15);
 
     // Stats
     if (stats) {
       ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-      ctx.font = '13px monospace';
+      ctx.font = `13px ${F}`;
       const statLine = `Kills: ${stats.kills}  |  Waves: ${stats.wavesCleared}  |  Powerups: ${stats.powerups}`;
       ctx.fillText(statLine, w / 2, h / 2 + 15);
     }
 
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-    ctx.font = '16px monospace';
+    ctx.font = `16px ${F}`;
     ctx.fillText('The no-code invasion has been stopped...', w / 2, h / 2 + 50);
     ctx.fillText('...for now.', w / 2, h / 2 + 75);
 
     if (Math.sin(Date.now() / 500) > 0) {
       ctx.fillStyle = CONFIG.COLORS.TEXT;
-      ctx.font = '18px monospace';
+      ctx.font = `18px ${F}`;
       ctx.fillText('> Click to play again _', w / 2, h / 2 + 120);
     }
   }

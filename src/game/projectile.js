@@ -81,7 +81,7 @@ export class Projectile {
     // Symbol text
     ctx.globalAlpha = 1;
     ctx.fillStyle = color;
-    ctx.font = `bold ${CONFIG.PROJECTILE.FONT_SIZE}px monospace`;
+    ctx.font = `bold ${CONFIG.PROJECTILE.FONT_SIZE}px ${CONFIG.FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.symbol, 0, 0);

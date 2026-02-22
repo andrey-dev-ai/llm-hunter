@@ -83,7 +83,7 @@ export class PowerUp {
 
     // Icon text
     ctx.fillStyle = this.data.color;
-    ctx.font = 'bold 11px sans-serif';
+    ctx.font = `bold 11px ${CONFIG.FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.data.icon, 0, 0);
