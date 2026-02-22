@@ -34,7 +34,7 @@ export class Projectile {
   }
 
   render(ctx) {
-    const color = SYMBOL_COLORS[this.symbol] || '#333';
+    const color = SYMBOL_COLORS[this.symbol] || '#cdd6f4';
 
     ctx.save();
     ctx.translate(this.x, this.y);

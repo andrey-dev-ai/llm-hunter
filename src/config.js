@@ -4,24 +4,28 @@
 
 export const CONFIG = {
   COLORS: {
-    BACKGROUND: '#f5f5f5',
-    GRID: '#e8e8e8',
-    TEXT: '#333333',
-    TEXT_LIGHT: '#888888',
+    BACKGROUND: '#1e1e2e',
+    GRID: '#2a2a3e',
+    TEXT: '#cdd6f4',
+    TEXT_LIGHT: '#6c7086',
     PLAYER_SKIN: '#fcd9b6',
     PLAYER_SKIN_DARK: '#c4956a',
     PLAYER_HAIR: '#4a3728',
-    PLAYER_HEADPHONES: '#333333',
-    PLAYER_GLASSES: '#1a1a2e',
-    HUD_BG: 'rgba(255,255,255,0.9)',
-    HP_FULL: '#4ade80',
-    HP_LOW: '#ef4444',
+    PLAYER_HEADPHONES: '#cdd6f4',
+    PLAYER_GLASSES: '#89b4fa',
+    HUD_BG: 'rgba(49,50,68,0.85)',
+    HUD_BORDER: '#45475a',
+    HP_FULL: '#a6e3a1',
+    HP_LOW: '#f38ba8',
+    OVERLAY_BG: 'rgba(17,17,27,0.92)',
+    ACCENT: '#89b4fa',
+    WARNING: '#f9e2af',
   },
 
   PLAYER: {
     RADIUS: 18,
-    MAX_HP: 5,
-    SPEED: 400,
+    MAX_HP: 8,
+    SPEED: 220,
     SHOOT_RATE: 0.3,      // seconds between shots
     DAMAGE: 1,
     INVULNERABLE_TIME: 1,  // seconds after hit
@@ -40,8 +44,34 @@ export const CONFIG = {
   },
 
   BOSS: {
-    SHOOT_RATE: 1.5,       // seconds between boss shots
-    PROJECTILE_SPEED: 200,
+    SHOOT_RATE: 1.0,       // seconds between boss shots
+    PROJECTILE_SPEED: 300,
+    ENRAGE_THRESHOLD: 0.5, // phase 2 at 50% HP
+    MINION_INTERVAL: 5,    // seconds between minion spawns (phase 2)
+    ENRAGE_SPEED_MULT: 1.5,
+    ENRAGE_SHOOT_MULT: 0.6, // faster shooting in phase 2
+    SPREAD_ANGLE: 0.3,     // radians for spread shot
+  },
+
+  KNOCKBACK: {
+    ENEMY_FORCE: 150,      // pixels pushed back from enemy
+    BOSS_FORCE: 250,       // pixels pushed back from boss
+    DURATION: 0.15,        // seconds of knockback effect
+  },
+
+  SCREEN_SHAKE: {
+    HIT_INTENSITY: 6,      // pixels
+    HIT_DURATION: 0.15,
+    KILL_INTENSITY: 3,
+    KILL_DURATION: 0.08,
+    BOSS_KILL_INTENSITY: 15,
+    BOSS_KILL_DURATION: 0.4,
+  },
+
+  HITSTOP: {
+    KILL_DURATION: 0.025,       // 25ms freeze on normal kill
+    STRONG_KILL_DURATION: 0.045, // 45ms on strong enemy (tier 3)
+    BOSS_KILL_DURATION: 0.12,   // 120ms on boss kill
   },
 
   POWERUP: {

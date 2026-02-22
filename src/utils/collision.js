@@ -1,8 +1,9 @@
-import { distance } from './vector.js';
+import { distanceSq } from './vector.js';
 
 /**
- * Circle-to-circle collision check
+ * Circle-to-circle collision check (uses squared distance — no sqrt)
  */
 export function circlesCollide(a, b) {
-  return distance(a, b) < a.radius + b.radius;
+  const minDist = a.radius + b.radius;
+  return distanceSq(a, b) < minDist * minDist;
 }

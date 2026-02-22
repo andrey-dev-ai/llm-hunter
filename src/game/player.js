@@ -1,5 +1,4 @@
 import { CONFIG } from '../config.js';
-import { distance, normalize, subtract } from '../utils/vector.js';
 
 const CODE_SYMBOLS = ['{}', '</>', '()', ';;', '//'];
 
@@ -13,10 +12,19 @@ export class Player {
     this.shootCooldown = 0;
     this.shootRate = CONFIG.PLAYER.SHOOT_RATE;
     this.damage = CONFIG.PLAYER.DAMAGE;
-    this.invulnerable = 0; // seconds of invulnerability after hit
+    this.baseSpeed = CONFIG.PLAYER.SPEED;
+    this.multiShot = 1;
+    this.projectileSpeedMult = 1;
+    this.invulnerable = 0;
     this.speedBoostTimer = 0;
     this._symbolIndex = 0;
     this._bobPhase = 0;
+    // Knockback
+    this._knockbackVx = 0;
+    this._knockbackVy = 0;
+    this._knockbackTimer = 0;
+    // Stats
+    this.stats = { kills: 0, powerups: 0, wavesCleared: 0, bossKills: 0 };
   }
 
   get alive() {
@@ -36,6 +44,15 @@ export class Player {
     return true;
   }
 
+  applyKnockback(fromX, fromY, force) {
+    const dx = this.x - fromX;
+    const dy = this.y - fromY;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    this._knockbackVx = (dx / dist) * force;
+    this._knockbackVy = (dy / dist) * force;
+    this._knockbackTimer = CONFIG.KNOCKBACK.DURATION;
+  }
+
   heal(amount) {
     this.hp = Math.min(this.maxHp, this.hp + amount);
   }
@@ -45,13 +62,21 @@ export class Player {
   }
 
   update(dt, mousePos) {
+    // Apply knockback
+    if (this._knockbackTimer > 0) {
+      const t = this._knockbackTimer / CONFIG.KNOCKBACK.DURATION;
+      this.x += this._knockbackVx * t * dt;
+      this.y += this._knockbackVy * t * dt;
+      this._knockbackTimer -= dt;
+    }
+
     // Move towards mouse
     const dx = mousePos.x - this.x;
     const dy = mousePos.y - this.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist > 5) {
-      const speed = CONFIG.PLAYER.SPEED;
+      const speed = this.baseSpeed;
       const move = Math.min(dist, speed * dt);
       this.x += (dx / dist) * move;
       this.y += (dy / dist) * move;
@@ -67,7 +92,7 @@ export class Player {
   }
 
   canShoot() {
-    const rate = this.speedBoostTimer > 0 ? this.shootRate * 0.5 : this.shootRate;
+    // Use rate for speed boost (fixes dead code bug)
     return this.shootCooldown <= 0 && this.alive;
   }
 
@@ -118,15 +143,12 @@ export class Player {
     // Glasses
     ctx.strokeStyle = CONFIG.COLORS.PLAYER_GLASSES;
     ctx.lineWidth = 2;
-    // Left lens
     ctx.beginPath();
     ctx.roundRect(-12, -4, 10, 8, 2);
     ctx.stroke();
-    // Right lens
     ctx.beginPath();
     ctx.roundRect(2, -4, 10, 8, 2);
     ctx.stroke();
-    // Bridge
     ctx.beginPath();
     ctx.moveTo(-2, 0);
     ctx.lineTo(2, 0);

@@ -8,6 +8,12 @@ export function distance(a, b) {
   return Math.sqrt(dx * dx + dy * dy);
 }
 
+export function distanceSq(a, b) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return dx * dx + dy * dy;
+}
+
 export function normalize(v) {
   const len = Math.sqrt(v.x * v.x + v.y * v.y);
   if (len === 0) return { x: 0, y: 0 };

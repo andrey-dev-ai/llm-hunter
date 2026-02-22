@@ -7,20 +7,33 @@ export const POWERUP_TYPES = {
     color: '#92400e',
     duration: 5,
     description: 'Fire rate x2!',
+    weight: 4,  // most common
   },
   STACKOVERFLOW: {
     name: 'Stack Overflow',
     icon: 'SO',
     color: '#f48024',
     description: 'Answer found! AOE damage!',
+    weight: 3,
   },
   GIT_REVERT: {
     name: 'Git Revert',
     icon: '+HP',
     color: '#4ade80',
     description: 'git revert HEAD~1',
+    weight: 2,  // rarest — healing is valuable
   },
 };
+
+// Pre-compute weighted array for O(1) random pick
+const _weightedPool = [];
+for (const [key, val] of Object.entries(POWERUP_TYPES)) {
+  for (let i = 0; i < val.weight; i++) _weightedPool.push(key);
+}
+
+export function randomPowerUpType() {
+  return _weightedPool[Math.floor(Math.random() * _weightedPool.length)];
+}
 
 export class PowerUp {
   constructor(x, y, type) {
@@ -38,7 +51,6 @@ export class PowerUp {
     this.age += dt;
     this._phase += dt * 3;
 
-    // Disappear after 8 seconds
     if (this.age > CONFIG.POWERUP.LIFETIME) {
       this.alive = false;
     }

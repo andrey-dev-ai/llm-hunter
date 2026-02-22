@@ -6,6 +6,13 @@ export class Input {
   constructor(canvas) {
     this.mouse = { x: canvas.width / 2, y: canvas.height / 2 };
     this.clicked = false;
+    this.keyPressed = null;
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key >= '1' && e.key <= '3') {
+        this.keyPressed = parseInt(e.key);
+      }
+    });
 
     canvas.addEventListener('mousemove', (e) => {
       const rect = canvas.getBoundingClientRect();
@@ -42,5 +49,11 @@ export class Input {
       return true;
     }
     return false;
+  }
+
+  consumeKey() {
+    const k = this.keyPressed;
+    this.keyPressed = null;
+    return k;
   }
 }

@@ -1,5 +1,5 @@
 import { CONFIG } from '../config.js';
-import { normalize, subtract } from '../utils/vector.js';
+import { normalize, subtract, distance } from '../utils/vector.js';
 
 export class Enemy {
   constructor(x, y, data) {
@@ -13,9 +13,16 @@ export class Enemy {
     this.radius = data.radius || CONFIG.ENEMY.BASE_RADIUS;
     this.color = data.color || '#666';
     this.label = data.label || data.name;
+    this.behavior = data.behavior || 'chase';
     this.alive = true;
     this._hitFlash = 0;
     this._phase = Math.random() * Math.PI * 2;
+    // Dash behavior state
+    this._dashTimer = 1 + Math.random() * 2;
+    this._isDashing = false;
+    this._dashDuration = 0;
+    // Orbit direction (1 or -1)
+    this._orbitDir = Math.random() > 0.5 ? 1 : -1;
   }
 
   takeDamage(amount) {
@@ -27,10 +34,50 @@ export class Enemy {
   }
 
   update(dt, playerPos) {
-    // Move towards player
     const dir = normalize(subtract(playerPos, this));
-    this.x += dir.x * this.speed * dt;
-    this.y += dir.y * this.speed * dt;
+
+    switch (this.behavior) {
+      case 'orbit': {
+        // Spiral approach: move towards player with perpendicular offset
+        const dist = distance(playerPos, this);
+        // Orbit strength increases as enemy gets closer
+        const orbitStrength = Math.min(1, 120 / Math.max(dist, 1));
+        const perpX = -dir.y * this._orbitDir;
+        const perpY = dir.x * this._orbitDir;
+        const moveX = dir.x * (1 - orbitStrength * 0.6) + perpX * orbitStrength;
+        const moveY = dir.y * (1 - orbitStrength * 0.6) + perpY * orbitStrength;
+        this.x += moveX * this.speed * dt;
+        this.y += moveY * this.speed * dt;
+        break;
+      }
+      case 'dash': {
+        // Alternate between slow creep and fast dash
+        if (this._isDashing) {
+          this.x += dir.x * this.speed * 2.5 * dt;
+          this.y += dir.y * this.speed * 2.5 * dt;
+          this._dashDuration -= dt;
+          if (this._dashDuration <= 0) {
+            this._isDashing = false;
+            this._dashTimer = 1.5 + Math.random() * 1.5;
+          }
+        } else {
+          this.x += dir.x * this.speed * 0.3 * dt;
+          this.y += dir.y * this.speed * 0.3 * dt;
+          this._dashTimer -= dt;
+          if (this._dashTimer <= 0) {
+            this._isDashing = true;
+            this._dashDuration = 0.3 + Math.random() * 0.2;
+          }
+        }
+        break;
+      }
+      default: {
+        // chase — straight to player
+        this.x += dir.x * this.speed * dt;
+        this.y += dir.y * this.speed * dt;
+        break;
+      }
+    }
 
     if (this._hitFlash > 0) this._hitFlash -= dt;
     this._phase += dt * 2;
@@ -44,7 +91,7 @@ export class Enemy {
     ctx.translate(this.x, this.y);
 
     // Shadow
-    ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
     ctx.beginPath();
     ctx.ellipse(2, 4, r, r * 0.6, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -55,12 +102,32 @@ export class Enemy {
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.fill();
 
-    // Border
-    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(0, 0, r, 0, Math.PI * 2);
-    ctx.stroke();
+    // Border / HP arc
+    const hpRatio = this.hp / this.maxHp;
+    if (hpRatio < 1) {
+      // Background arc (full circle)
+      ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // HP arc (colored, from top clockwise)
+      const startAngle = -Math.PI / 2;
+      const endAngle = startAngle + Math.PI * 2 * hpRatio;
+      ctx.strokeStyle = hpRatio > 0.5 ? '#a6e3a1' : hpRatio > 0.25 ? '#f9e2af' : '#f38ba8';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, startAngle, endAngle);
+      ctx.stroke();
+    } else {
+      // Full HP — subtle border
+      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+    }
 
     // Label
     const fontSize = Math.max(9, Math.min(14, r * 0.7));
@@ -69,20 +136,6 @@ export class Enemy {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(this.label, 0, 0);
-
-    // HP bar (if damaged)
-    if (this.hp < this.maxHp) {
-      const barWidth = r * 2;
-      const barHeight = 4;
-      const barY = -r - 8;
-      const hpRatio = this.hp / this.maxHp;
-
-      ctx.fillStyle = 'rgba(0,0,0,0.3)';
-      ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight);
-
-      ctx.fillStyle = hpRatio > 0.5 ? '#4ade80' : hpRatio > 0.25 ? '#fbbf24' : '#ef4444';
-      ctx.fillRect(-barWidth / 2, barY, barWidth * hpRatio, barHeight);
-    }
 
     ctx.restore();
   }
