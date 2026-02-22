@@ -124,18 +124,35 @@ export class UI {
     ctx.fillStyle = CONFIG.COLORS.OVERLAY_BG;
     ctx.fillRect(0, 0, w, h);
 
-    // Death message
+    // Death message with strikethrough
     ctx.fillStyle = CONFIG.COLORS.HP_LOW;
     ctx.font = `bold 16px ${F}`;
     ctx.textAlign = 'center';
-    ctx.fillText('// ' + CONFIG.GAME.DEATH_MESSAGE, w / 2, h / 2 - 110);
+    const deathMsg = '// ' + CONFIG.GAME.DEATH_MESSAGE;
+    ctx.fillText(deathMsg, w / 2, h / 2 - 110);
+    const msgW = ctx.measureText(deathMsg).width;
+    ctx.strokeStyle = CONFIG.COLORS.HP_LOW;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - msgW / 2, h / 2 - 110);
+    ctx.lineTo(w / 2 + msgW / 2, h / 2 - 110);
+    ctx.stroke();
 
-    // Game Over
-    ctx.fillStyle = CONFIG.COLORS.IDENTITY_RED;
+    // Game Over — chromatic aberration
     ctx.font = `bold 42px ${F}`;
+    ctx.textAlign = 'center';
+    ctx.save();
+    ctx.globalAlpha = 0.3;
+    ctx.fillStyle = '#ff0000';
+    ctx.fillText('GAME OVER', w / 2 + 2, h / 2 - 60 + 1);
+    ctx.fillStyle = '#0088ff';
+    ctx.fillText('GAME OVER', w / 2 - 2, h / 2 - 60 - 1);
+    ctx.restore();
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_RED;
     ctx.fillText('GAME OVER', w / 2, h / 2 - 60);
 
     // Score
+    ctx.fillStyle = CONFIG.COLORS.TEXT;
     ctx.font = `24px ${F}`;
     ctx.fillText(`Score: ${score}`, w / 2, h / 2 - 15);
 

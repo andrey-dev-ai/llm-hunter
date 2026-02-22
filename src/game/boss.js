@@ -205,6 +205,24 @@ export class Boss {
     ctx.arc(0, 0, r, 0, Math.PI * 2);
     ctx.stroke();
 
+    // Rotating symbol ring
+    const symbols = ['{', '}', '<', '>', '(', ')', '[', ']'];
+    const ringR = r + 25;
+    ctx.save();
+    ctx.globalAlpha = this.enraged ? 0.5 : 0.35;
+    ctx.fillStyle = this.enraged ? '#ef4444' : '#fff';
+    ctx.font = `bold 14px ${CONFIG.FONT}`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const rotSpeed = this.enraged ? 0.5 : 0.3;
+    for (let i = 0; i < symbols.length; i++) {
+      const angle = (Math.PI * 2 / symbols.length) * i + this._phase * rotSpeed;
+      const sx = Math.cos(angle) * ringR;
+      const sy = Math.sin(angle) * ringR;
+      ctx.fillText(symbols[i], sx, sy);
+    }
+    ctx.restore();
+
     // Label
     ctx.fillStyle = '#fff';
     ctx.font = `bold 18px ${CONFIG.FONT}`;
@@ -212,27 +230,37 @@ export class Boss {
     ctx.textBaseline = 'middle';
     ctx.fillText(this.label, 0, 0);
 
-    // HP bar
-    const barWidth = r * 2.5;
-    const barHeight = 6;
-    const barY = -r - 15;
+    // HP bar (wider, taller, rounded)
+    const barWidth = r * 3;
+    const barHeight = 10;
+    const barY = -r - 18;
     const hpRatio = this.hp / this.maxHp;
+    const hpColor = hpRatio > 0.5 ? '#a6e3a1' : hpRatio > 0.25 ? '#f9e2af' : '#f38ba8';
 
-    ctx.fillStyle = 'rgba(0,0,0,0.4)';
-    ctx.fillRect(-barWidth / 2, barY, barWidth, barHeight);
-    ctx.fillStyle = hpRatio > 0.5 ? '#a6e3a1' : hpRatio > 0.25 ? '#f9e2af' : '#f38ba8';
-    ctx.fillRect(-barWidth / 2, barY, barWidth * hpRatio, barHeight);
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.beginPath();
+    ctx.roundRect(-barWidth / 2, barY, barWidth, barHeight, 3);
+    ctx.fill();
+    ctx.fillStyle = hpColor;
+    ctx.beginPath();
+    ctx.roundRect(-barWidth / 2, barY, barWidth * hpRatio, barHeight, 3);
+    ctx.fill();
+
+    // HP text
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold 10px ${CONFIG.FONT}`;
+    ctx.fillText(`${this.hp}/${this.maxHp}`, 0, barY + barHeight / 2 + 1);
 
     // Phrase bubble
     if (this._phraseAlpha > 0 && this._currentPhrase) {
       ctx.globalAlpha = Math.min(1, this._phraseAlpha);
       ctx.fillStyle = this.enraged ? 'rgba(239,68,68,0.8)' : 'rgba(0,0,0,0.7)';
+      ctx.font = this.enraged ? `bold 13px ${CONFIG.FONT}` : `13px ${CONFIG.FONT}`;
       const tw = ctx.measureText(this._currentPhrase).width + 16;
       ctx.beginPath();
-      ctx.roundRect(-tw / 2, -r - 40, tw, 22, 6);
+      ctx.roundRect(-tw / 2, -r - 44, tw, 22, 6);
       ctx.fill();
       ctx.fillStyle = '#fff';
-      ctx.font = this.enraged ? `bold 12px ${CONFIG.FONT}` : `12px ${CONFIG.FONT}`;
       ctx.fillText(this._currentPhrase, 0, -r - 26);
     }
 

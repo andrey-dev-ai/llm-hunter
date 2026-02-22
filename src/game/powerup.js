@@ -71,22 +71,81 @@ export class PowerUp {
     ctx.arc(0, 0, this.radius + 8, 0, Math.PI * 2);
     ctx.fill();
 
-    // Body
     ctx.globalAlpha = 1;
-    ctx.fillStyle = '#fff';
-    ctx.strokeStyle = this.data.color;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
+    const r = this.radius;
+
+    if (this.type === 'COFFEE') {
+      // Filled roundRect (cup shape)
+      const size = r * 1.7;
+      ctx.fillStyle = this.data.color;
+      ctx.beginPath();
+      ctx.roundRect(-size / 2, -size / 2, size, size, 5);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.roundRect(-size / 2, -size / 2, size, size, 5);
+      ctx.stroke();
+    } else if (this.type === 'STACKOVERFLOW') {
+      // Filled circle + pulsating AOE ring
+      ctx.fillStyle = this.data.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+      // Pulsating AOE ring preview
+      const aoePulse = 0.5 + Math.sin(this._phase * 1.5) * 0.5;
+      ctx.save();
+      ctx.globalAlpha = 0.15 + aoePulse * 0.15;
+      ctx.strokeStyle = this.data.color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r + 12 + aoePulse * 8, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    } else if (this.type === 'GIT_REVERT') {
+      // Filled circle with cross/plus symbol
+      ctx.fillStyle = this.data.color;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.stroke();
+      // Cross/plus symbol
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(0, -6);
+      ctx.lineTo(0, 6);
+      ctx.moveTo(-6, 0);
+      ctx.lineTo(6, 0);
+      ctx.stroke();
+    } else {
+      // Fallback: default circle
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = this.data.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
 
     // Icon text
-    ctx.fillStyle = this.data.color;
-    ctx.font = `bold 11px ${CONFIG.FONT}`;
+    ctx.fillStyle = this.type === 'GIT_REVERT' ? this.data.color : '#fff';
+    ctx.font = `bold 13px ${CONFIG.FONT}`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(this.data.icon, 0, 0);
+    if (this.type !== 'GIT_REVERT') {
+      ctx.fillText(this.data.icon, 0, 0);
+    }
 
     ctx.restore();
   }

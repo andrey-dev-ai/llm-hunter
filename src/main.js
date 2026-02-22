@@ -47,6 +47,7 @@ let bossWasEnraged = false;
 let waveEnemyTotal = 0;
 let upgradeChoices = [];
 let upgradeHover = -1;
+let vignette = null; // { color, alpha, life, maxLife }
 
 // --- Init ---
 const canvas = document.getElementById('game');
@@ -70,6 +71,7 @@ function startGame() {
   deathAnims = [];
   hitstopTimer = 0;
   bossWasEnraged = false;
+  vignette = null;
   startWave();
 }
 
@@ -175,6 +177,10 @@ function addParticle(x, y, color, count = 5) {
 
 function addFloatingText(x, y, text, color, size = 14) {
   floatingTexts.push({ x, y, text, color, size, life: 1.0, vy: -60 });
+}
+
+function addVignette(color, duration = 0.5) {
+  vignette = { color, alpha: 0.15, life: duration, maxLife: duration };
 }
 
 function addDeathAnim(x, y, radius, color, label) {
@@ -359,6 +365,12 @@ function update(dt) {
     }
   }
 
+  // Update vignette
+  if (vignette) {
+    vignette.life -= dt;
+    if (vignette.life <= 0) vignette = null;
+  }
+
   // Update death animations
   for (let i = deathAnims.length - 1; i >= 0; i--) {
     deathAnims[i].age += dt;
@@ -409,11 +421,12 @@ function update(dt) {
           player.stats.kills++;
           player.stats.bossKills++;
           addDeathAnim(boss.x, boss.y, boss.radius, boss.color, boss.label);
-          addParticle(boss.x, boss.y, boss.color, 20);
+          addParticle(boss.x, boss.y, boss.color, 35);
           addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#f9e2af', 22);
           audio.play('bossKill');
           renderer.shake(CONFIG.SCREEN_SHAKE.BOSS_KILL_INTENSITY, CONFIG.SCREEN_SHAKE.BOSS_KILL_DURATION);
           hitstopTimer = CONFIG.HITSTOP.BOSS_KILL_DURATION;
+          addVignette(CONFIG.COLORS.IDENTITY_GREEN, 0.6);
         }
       }
     }
@@ -453,10 +466,11 @@ function update(dt) {
     if (circlesCollide(pu, player)) {
       pu.alive = false;
       applyPowerUp(pu.type);
-      addParticle(pu.x, pu.y, pu.data.color, 8);
+      addParticle(pu.x, pu.y, pu.data.color, 12);
       audio.play('powerup');
       player.stats.powerups++;
       addFloatingText(player.x, player.y - 35, pu.data.description, pu.data.color, 14);
+      addVignette(pu.data.color, 0.4);
     }
   }
 
@@ -538,9 +552,10 @@ function applyPowerUp(type) {
           player.stats.kills++;
           player.stats.bossKills++;
           addDeathAnim(boss.x, boss.y, boss.radius, boss.color, boss.label);
-          addParticle(boss.x, boss.y, boss.color, 20);
+          addParticle(boss.x, boss.y, boss.color, 35);
           addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#f9e2af', 22);
           audio.play('bossKill');
+          addVignette(CONFIG.COLORS.IDENTITY_GREEN, 0.6);
         }
       }
       renderer.shake(CONFIG.SCREEN_SHAKE.HIT_INTENSITY, CONFIG.SCREEN_SHAKE.HIT_DURATION);
@@ -637,6 +652,22 @@ function render() {
   // Player
   if (player) {
     player.render(renderer.ctx);
+  }
+
+  // Vignette overlay
+  if (vignette) {
+    const ctx = renderer.ctx;
+    const w = renderer.width;
+    const h = renderer.height;
+    const t = vignette.life / vignette.maxLife; // 1→0
+    ctx.save();
+    ctx.globalAlpha = vignette.alpha * t;
+    const grad = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.7);
+    grad.addColorStop(0, 'transparent');
+    grad.addColorStop(1, vignette.color);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
   }
 
   // HUD
