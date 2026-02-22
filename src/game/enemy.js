@@ -218,7 +218,7 @@ export class Enemy {
       ctx.arc(0, 0, r, startAngle, endAngle);
       ctx.stroke();
     } else {
-      ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)';
       ctx.lineWidth = 2;
       this._drawBody(ctx, r);
       ctx.stroke();

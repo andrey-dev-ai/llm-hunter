@@ -92,11 +92,11 @@ function startWave() {
     }
     spawnTimer = 0;
     announceText = `Wave ${currentWave + 1}`;
-    announceTimer = 2;
-    state = STATE.WAVE_ANNOUNCE;
+    announceTimer = 1.2;
+    state = STATE.PLAYING;
   } else {
     waveEnemyTotal = 0;
-    announceTimer = 2.5;
+    announceTimer = 1.5;
     state = STATE.BOSS_WARNING;
   }
 }
@@ -184,8 +184,8 @@ function addDeathAnim(x, y, radius, color, label) {
 function getUpgradeCardIndex(mouse) {
   const w = renderer.width;
   const h = renderer.height;
-  const cardW = 160;
-  const cardH = 180;
+  const cardW = 180;
+  const cardH = 200;
   const gap = 30;
   const totalW = upgradeChoices.length * cardW + (upgradeChoices.length - 1) * gap;
   const startX = (w - totalW) / 2;
@@ -207,11 +207,8 @@ function update(dt) {
 
   if (state === STATE.MENU) return;
 
-  if (state === STATE.WAVE_ANNOUNCE) {
-    announceTimer -= dt;
-    if (announceTimer <= 0) state = STATE.PLAYING;
-    return;
-  }
+  // Wave announcement timer (non-blocking — gameplay continues)
+  if (announceTimer > 0) announceTimer -= dt;
 
   if (state === STATE.BOSS_WARNING) {
     announceTimer -= dt;
@@ -299,11 +296,16 @@ function update(dt) {
   if (boss && boss.alive) {
     boss.update(dt, player);
 
+    // Clamp boss to screen
+    boss.x = Math.max(boss.radius, Math.min(renderer.width - boss.radius, boss.x));
+    boss.y = Math.max(boss.radius + 50, Math.min(renderer.height - boss.radius, boss.y));
+
     if (boss.enraged && !bossWasEnraged) {
       bossWasEnraged = true;
       audio.play('enrage');
       addFloatingText(boss.x, boss.y - boss.radius - 20, 'ENRAGED!', '#f38ba8', 20);
-      renderer.shake(CONFIG.SCREEN_SHAKE.HIT_INTENSITY, CONFIG.SCREEN_SHAKE.HIT_DURATION);
+      renderer.shake(CONFIG.SCREEN_SHAKE.BOSS_KILL_INTENSITY * 0.6, CONFIG.SCREEN_SHAKE.BOSS_KILL_DURATION * 0.5);
+      hitstopTimer = 0.15; // dramatic pause on enrage
     }
 
     while (boss.pendingMinions.length > 0) {
@@ -503,7 +505,7 @@ function update(dt) {
     currentWave++;
     if (currentWave > 0) {
       // Show upgrade selection between waves
-      upgradeChoices = pickRandomUpgrades(3);
+      upgradeChoices = pickRandomUpgrades(3, player);
       upgradeHover = -1;
       state = STATE.UPGRADE_SELECT;
     } else {
@@ -523,7 +525,10 @@ function applyPowerUp(type) {
         if (!e.alive) {
           score += e.points;
           player.stats.kills++;
-          addParticle(e.x, e.y, e.color, 5);
+          addDeathAnim(e.x, e.y, e.radius, e.color, e.label);
+          addParticle(e.x, e.y, e.color, 8);
+          addFloatingText(e.x, e.y - e.radius - 15, `+${e.points}`, '#f9e2af', 12);
+          audio.play('kill');
         }
       }
       if (boss && boss.alive) {
@@ -532,7 +537,10 @@ function applyPowerUp(type) {
           score += boss.points;
           player.stats.kills++;
           player.stats.bossKills++;
-          addParticle(boss.x, boss.y, boss.color, 15);
+          addDeathAnim(boss.x, boss.y, boss.radius, boss.color, boss.label);
+          addParticle(boss.x, boss.y, boss.color, 20);
+          addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#f9e2af', 22);
+          audio.play('bossKill');
         }
       }
       renderer.shake(CONFIG.SCREEN_SHAKE.HIT_INTENSITY, CONFIG.SCREEN_SHAKE.HIT_DURATION);
@@ -646,13 +654,13 @@ function render() {
   }
 
   // Overlays
-  if (state === STATE.WAVE_ANNOUNCE) {
+  if (announceTimer > 0 && state === STATE.PLAYING) {
     const alpha = Math.min(1, announceTimer);
     ui.drawWaveAnnouncement(announceText, alpha);
   }
 
   if (state === STATE.BOSS_WARNING) {
-    const alpha = Math.min(1, announceTimer / 2);
+    const alpha = Math.min(1, announceTimer / 1.5);
     ui.drawBossWarning(alpha);
   }
 
@@ -689,8 +697,8 @@ function drawUpgradeScreen() {
   ctx.fillText('// pick one to continue', w / 2, h / 2 - 100);
 
   // Cards
-  const cardW = 160;
-  const cardH = 180;
+  const cardW = 180;
+  const cardH = 200;
   const gap = 30;
   const totalW = upgradeChoices.length * cardW + (upgradeChoices.length - 1) * gap;
   const startX = (w - totalW) / 2;
@@ -712,28 +720,33 @@ function drawUpgradeScreen() {
 
     // Icon
     ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : CONFIG.COLORS.TEXT;
-    ctx.font = `bold 28px ${CONFIG.FONT}`;
+    ctx.font = `bold 34px ${CONFIG.FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillText(up.icon, cx + cardW / 2, startY + 50);
+    ctx.fillText(up.icon, cx + cardW / 2, startY + 55);
 
     // Name
     ctx.fillStyle = CONFIG.COLORS.TEXT;
-    ctx.font = `bold 13px ${CONFIG.FONT}`;
-    ctx.fillText(up.name, cx + cardW / 2, startY + 90);
+    ctx.font = `bold 14px ${CONFIG.FONT}`;
+    ctx.fillText(up.name, cx + cardW / 2, startY + 100);
 
     // Description
-    ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-    ctx.font = `12px ${CONFIG.FONT}`;
-    ctx.fillText(up.description, cx + cardW / 2, startY + 120);
+    ctx.fillStyle = CONFIG.COLORS.TEXT;
+    ctx.font = `14px ${CONFIG.FONT}`;
+    ctx.fillText(up.description, cx + cardW / 2, startY + 130);
 
     // Number hint
     ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : 'rgba(255,255,255,0.2)';
-    ctx.font = `11px ${CONFIG.FONT}`;
+    ctx.font = `13px ${CONFIG.FONT}`;
     ctx.fillText(`[${i + 1}]`, cx + cardW / 2, startY + cardH - 15);
   }
 }
 
 // --- Click handler ---
+function applyUpgrade(upgrade) {
+  upgrade.apply(player);
+  player._upgradeStacks[upgrade.id] = (player._upgradeStacks[upgrade.id] || 0) + 1;
+}
+
 function handleClick() {
   audio.init();
   if (state === STATE.MENU) {
@@ -741,7 +754,7 @@ function handleClick() {
   } else if (state === STATE.UPGRADE_SELECT) {
     const idx = getUpgradeCardIndex(input.mouse);
     if (idx >= 0 && idx < upgradeChoices.length) {
-      upgradeChoices[idx].apply(player);
+      applyUpgrade(upgradeChoices[idx]);
       audio.play('powerup');
       startWave();
     }
@@ -763,7 +776,7 @@ function pollClicks() {
   if (key && state === STATE.UPGRADE_SELECT) {
     const idx = key - 1;
     if (idx >= 0 && idx < upgradeChoices.length) {
-      upgradeChoices[idx].apply(player);
+      applyUpgrade(upgradeChoices[idx]);
       audio.play('powerup');
       startWave();
     }

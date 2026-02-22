@@ -25,6 +25,7 @@ export class Player {
     this._knockbackTimer = 0;
     // Stats
     this.stats = { kills: 0, powerups: 0, wavesCleared: 0, bossKills: 0 };
+    this._upgradeStacks = {};
   }
 
   get alive() {
@@ -76,7 +77,7 @@ export class Player {
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist > 5) {
-      const speed = this.baseSpeed;
+      const speed = this.speedBoostTimer > 0 ? this.baseSpeed * 1.4 : this.baseSpeed;
       const move = Math.min(dist, speed * dt);
       this.x += (dx / dist) * move;
       this.y += (dy / dist) * move;

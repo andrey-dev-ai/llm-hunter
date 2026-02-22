@@ -49,15 +49,21 @@ export const UPGRADES = [
 ];
 
 /**
- * Pick N random unique upgrades from the pool
+ * Pick N random unique upgrades from the pool.
+ * Filters out upgrades that reached maxStacks for this player.
  */
-export function pickRandomUpgrades(count = 3) {
-  const pool = [...UPGRADES];
+export function pickRandomUpgrades(count = 3, player = null) {
+  const pool = UPGRADES.filter(up => {
+    if (!up.maxStacks || !player) return true;
+    const stacks = player._upgradeStacks?.[up.id] || 0;
+    return stacks < up.maxStacks;
+  });
+  const shuffled = [...pool];
   const result = [];
-  for (let i = 0; i < count && pool.length > 0; i++) {
-    const idx = Math.floor(Math.random() * pool.length);
-    result.push(pool[idx]);
-    pool.splice(idx, 1);
+  for (let i = 0; i < count && shuffled.length > 0; i++) {
+    const idx = Math.floor(Math.random() * shuffled.length);
+    result.push(shuffled[idx]);
+    shuffled.splice(idx, 1);
   }
   return result;
 }

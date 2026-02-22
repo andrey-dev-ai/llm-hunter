@@ -46,8 +46,8 @@ export class UI {
     ctx.fillText(`Score: ${score}`, w / 2, 22);
 
     // Wave indicator
-    ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-    ctx.font = `14px ${F}`;
+    ctx.fillStyle = CONFIG.COLORS.TEXT;
+    ctx.font = `bold 14px ${F}`;
     ctx.textAlign = 'right';
     ctx.fillText(`Wave ${waveNum}/${waveTotal}`, w - 20, 22);
 
@@ -88,7 +88,7 @@ export class UI {
 
     // Subtitle
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-    ctx.font = `20px ${F}`;
+    ctx.font = `bold 20px ${F}`;
     ctx.fillText(CONFIG.GAME.SUBTITLE, w / 2, h / 2 - 20);
 
     // Code decoration
@@ -98,11 +98,9 @@ export class UI {
 
     // Start prompt (blinking green cursor)
     if (Math.sin(Date.now() / 500) > 0) {
-      ctx.fillStyle = CONFIG.COLORS.TEXT;
-      ctx.font = `18px ${F}`;
-      ctx.fillText('> ' + CONFIG.GAME.START_TEXT, w / 2 - 5, h / 2 + 80);
       ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
-      ctx.fillText(' _', w / 2 + ctx.measureText('> ' + CONFIG.GAME.START_TEXT).width / 2 - 5, h / 2 + 80);
+      ctx.font = `bold 18px ${F}`;
+      ctx.fillText('> ' + CONFIG.GAME.START_TEXT + ' _', w / 2, h / 2 + 80);
     }
 
     // Controls hint
@@ -112,7 +110,7 @@ export class UI {
 
     // Mobile warning
     if (isMobile) {
-      ctx.fillStyle = '#ef4444';
+      ctx.fillStyle = CONFIG.COLORS.IDENTITY_RED;
       ctx.font = `bold 14px ${F}`;
       ctx.fillText('Best played on desktop with mouse!', w / 2, h / 2 + 160);
     }
@@ -133,7 +131,7 @@ export class UI {
     ctx.fillText('// ' + CONFIG.GAME.DEATH_MESSAGE, w / 2, h / 2 - 110);
 
     // Game Over
-    ctx.fillStyle = CONFIG.COLORS.TEXT;
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_RED;
     ctx.font = `bold 42px ${F}`;
     ctx.fillText('GAME OVER', w / 2, h / 2 - 60);
 
@@ -150,7 +148,7 @@ export class UI {
 
     // New high score!
     if (score >= highScore && score > 0) {
-      ctx.fillStyle = CONFIG.COLORS.WARNING;
+      ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
       ctx.font = `bold 16px ${F}`;
       ctx.fillText('NEW HIGH SCORE!', w / 2, h / 2 + 40);
     }
@@ -159,7 +157,7 @@ export class UI {
     if (stats) {
       const sy = h / 2 + 65;
       ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-      ctx.font = `13px ${F}`;
+      ctx.font = `bold 15px ${F}`;
       const statLine = `Kills: ${stats.kills}  |  Waves: ${stats.wavesCleared}  |  Powerups: ${stats.powerups}`;
       ctx.fillText(statLine, w / 2, sy);
     }
@@ -175,14 +173,20 @@ export class UI {
   drawWaveAnnouncement(text, alpha) {
     const ctx = this.ctx;
     const w = this.renderer.width;
-    const h = this.renderer.height;
 
     ctx.save();
     ctx.globalAlpha = alpha;
-    ctx.fillStyle = CONFIG.COLORS.TEXT;
-    ctx.font = `bold 32px ${F}`;
+
+    // Background strip under HUD
+    ctx.fillStyle = 'rgba(17,17,27,0.7)';
+    ctx.fillRect(0, 55, w, 44);
+
+    // Wave text
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.font = `bold 24px ${F}`;
     ctx.textAlign = 'center';
-    ctx.fillText(text, w / 2, h / 2 - 20);
+    ctx.fillText(text, w / 2, 82);
+
     ctx.restore();
   }
 
@@ -194,16 +198,22 @@ export class UI {
     ctx.save();
     ctx.globalAlpha = alpha;
 
-    ctx.fillStyle = 'rgba(239, 68, 68, 0.1)';
+    // Subtle red tint on full screen
+    ctx.fillStyle = 'rgba(239, 68, 68, 0.08)';
     ctx.fillRect(0, 0, w, h);
 
-    ctx.fillStyle = '#ef4444';
-    ctx.font = `bold 36px ${F}`;
-    ctx.textAlign = 'center';
-    ctx.fillText('WARNING: BOSS INCOMING', w / 2, h / 2 - 20);
+    // Background strip under HUD
+    ctx.fillStyle = 'rgba(17,17,27,0.8)';
+    ctx.fillRect(0, 55, w, 52);
 
-    ctx.font = `18px ${F}`;
-    ctx.fillText('ChatGPT has entered the chat', w / 2, h / 2 + 20);
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_RED;
+    ctx.font = `bold 24px ${F}`;
+    ctx.textAlign = 'center';
+    ctx.fillText('WARNING: BOSS INCOMING', w / 2, 78);
+
+    ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
+    ctx.font = `14px ${F}`;
+    ctx.fillText('ChatGPT has entered the chat', w / 2, 98);
 
     ctx.restore();
   }
@@ -221,7 +231,7 @@ export class UI {
     ctx.textAlign = 'center';
     ctx.fillText('// git push --force', w / 2, h / 2 - 110);
 
-    ctx.fillStyle = CONFIG.COLORS.TEXT;
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
     ctx.font = `bold 42px ${F}`;
     ctx.fillText('LEVEL COMPLETE!', w / 2, h / 2 - 60);
 
@@ -231,7 +241,7 @@ export class UI {
     // Stats
     if (stats) {
       ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-      ctx.font = `13px ${F}`;
+      ctx.font = `bold 15px ${F}`;
       const statLine = `Kills: ${stats.kills}  |  Waves: ${stats.wavesCleared}  |  Powerups: ${stats.powerups}`;
       ctx.fillText(statLine, w / 2, h / 2 + 15);
     }

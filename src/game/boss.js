@@ -42,6 +42,8 @@ export class Boss {
     this._currentPhrase = '';
     this._phraseAlpha = 0;
     this._shootTimer = 0;
+    this._chargeTimer = 0; // telegraph before shooting
+    this._charging = false;
     this._minionTimer = CONFIG.BOSS.MINION_INTERVAL;
     this.pendingMinions = []; // main.js reads and spawns these
     this.projectiles = [];
@@ -52,6 +54,7 @@ export class Boss {
     this._hitFlash = 0.1;
     if (this.hp <= 0) {
       this.alive = false;
+      this.projectiles = [];
     }
   }
 
@@ -87,38 +90,46 @@ export class Boss {
     }
     if (this._phraseAlpha > 0) this._phraseAlpha -= dt * 0.5;
 
-    // Shoot at player
+    // Shoot at player (with telegraph charge-up)
     const shootRate = this.enraged
       ? CONFIG.BOSS.SHOOT_RATE * CONFIG.BOSS.ENRAGE_SHOOT_MULT
       : CONFIG.BOSS.SHOOT_RATE;
 
-    this._shootTimer -= dt;
-    if (this._shootTimer <= 0 && this.alive) {
-      const toPlayer = normalize(subtract(playerPos, this));
-      const text = PROMPT_TEXTS[Math.floor(Math.random() * PROMPT_TEXTS.length)];
+    if (this._charging) {
+      this._chargeTimer -= dt;
+      if (this._chargeTimer <= 0) {
+        // Fire!
+        this._charging = false;
+        const toPlayer = normalize(subtract(playerPos, this));
+        const text = PROMPT_TEXTS[Math.floor(Math.random() * PROMPT_TEXTS.length)];
 
-      if (this.enraged) {
-        // Spread shot — 3 projectiles
-        const spread = CONFIG.BOSS.SPREAD_ANGLE;
-        for (let i = -1; i <= 1; i++) {
-          const angle = Math.atan2(toPlayer.y, toPlayer.x) + i * spread;
+        if (this.enraged) {
+          const spread = CONFIG.BOSS.SPREAD_ANGLE;
+          for (let i = -1; i <= 1; i++) {
+            const angle = Math.atan2(toPlayer.y, toPlayer.x) + i * spread;
+            this.projectiles.push({
+              x: this.x, y: this.y,
+              dirX: Math.cos(angle), dirY: Math.sin(angle),
+              speed: CONFIG.BOSS.PROJECTILE_SPEED,
+              radius: 8, alive: true, age: 0, text,
+            });
+          }
+        } else {
           this.projectiles.push({
             x: this.x, y: this.y,
-            dirX: Math.cos(angle), dirY: Math.sin(angle),
+            dirX: toPlayer.x, dirY: toPlayer.y,
             speed: CONFIG.BOSS.PROJECTILE_SPEED,
             radius: 8, alive: true, age: 0, text,
           });
         }
-      } else {
-        // Single shot
-        this.projectiles.push({
-          x: this.x, y: this.y,
-          dirX: toPlayer.x, dirY: toPlayer.y,
-          speed: CONFIG.BOSS.PROJECTILE_SPEED,
-          radius: 8, alive: true, age: 0, text,
-        });
+        this._shootTimer = shootRate;
       }
-      this._shootTimer = shootRate;
+    } else {
+      this._shootTimer -= dt;
+      if (this._shootTimer <= 0 && this.alive) {
+        this._charging = true;
+        this._chargeTimer = 0.3;
+      }
     }
 
     // Spawn minions in phase 2
@@ -152,6 +163,20 @@ export class Boss {
 
     ctx.save();
     ctx.translate(this.x, this.y);
+
+    // Telegraph charge-up glow
+    if (this._charging) {
+      const chargeT = 1 - (this._chargeTimer / 0.3); // 0→1
+      const chargeR = r + 10 + chargeT * 15;
+      ctx.save();
+      ctx.globalAlpha = 0.3 + chargeT * 0.4;
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2 + chargeT * 3;
+      ctx.beginPath();
+      ctx.arc(0, 0, chargeR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
 
     // Aura / glow (bigger and redder when enraged)
     const glowSize = this.enraged ? 50 : 30;
