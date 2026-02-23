@@ -9,10 +9,11 @@ import { Boss } from './game/boss.js';
 import { Projectile } from './game/projectile.js';
 import { PowerUp, POWERUP_TYPES, randomPowerUpType } from './game/powerup.js';
 import { UI } from './game/ui.js';
+import { EffectsManager } from './game/effects.js';
+import { resolveCollisions } from './game/collisions.js';
 import { LEVELS } from './data/levels.js';
 import { pickRandomUpgrades } from './data/upgrades.js';
-import { circlesCollide } from './utils/collision.js';
-import { normalize, subtract, distance } from './utils/vector.js';
+import { distance, normalize, subtract } from './utils/vector.js';
 
 // --- Game State ---
 const STATE = {
@@ -39,17 +40,12 @@ let spawnQueue = [];
 let spawnTimer = 0;
 let announceTimer = 0;
 let announceText = '';
-let particles = [];
-let floatingTexts = [];
-let deathAnims = [];
 let hitstopTimer = 0;
-let spawnIndicators = []; // { x, y, color, life, maxLife }
 let bossWasEnraged = false;
 let waveEnemyTotal = 0;
 let upgradeChoices = [];
 let upgradeHover = -1;
-let vignette = null; // { color, alpha, life, maxLife }
-let overlayFade = 0; // 0→1 fade-in for overlay screens
+let overlayFade = 0;
 
 // --- Init ---
 const canvas = document.getElementById('game');
@@ -57,7 +53,18 @@ const renderer = new Renderer(canvas);
 const input = new Input(canvas);
 const audio = new Audio();
 const ui = new UI(renderer);
+const fx = new EffectsManager();
 const engine = new Engine(update, render);
+
+// Collision callbacks
+const collisionCallbacks = {
+  onAudio: (name) => audio.play(name),
+  onScore: (pts) => { score += pts; },
+  onShake: (i, d) => renderer.shake(i, d),
+  onHitstop: (d) => { hitstopTimer = d; },
+  onSpawnPowerUp: (x, y) => spawnPowerUp(x, y),
+  onApplyPowerUp: (type) => applyPowerUp(type),
+};
 
 function startGame() {
   player = new Player(renderer.width / 2, renderer.height / 2);
@@ -68,13 +75,9 @@ function startGame() {
   score = 0;
   currentLevel = 0;
   currentWave = 0;
-  particles = [];
-  floatingTexts = [];
-  deathAnims = [];
   hitstopTimer = 0;
-  spawnIndicators = [];
   bossWasEnraged = false;
-  vignette = null;
+  fx.reset();
   startWave();
 }
 
@@ -135,12 +138,17 @@ function spawnEnemy(data) {
     case 3: x = -margin; y = Math.random() * renderer.height; break;
   }
 
-  // Edge spawn indicator — clamped to screen edge
   const ix = Math.max(8, Math.min(renderer.width - 8, x));
-  const iy = Math.max(58, Math.min(renderer.height - 8, y)); // below HUD
-  spawnIndicators.push({ x: ix, y: iy, color: data.color || '#fff', life: 0.5, maxLife: 0.5 });
+  const iy = Math.max(58, Math.min(renderer.height - 8, y));
+  fx.addSpawnIndicator(ix, iy, data.color || '#fff');
 
-  enemies.push(new Enemy(x, y, data));
+  // Difficulty scaling: HP +15% per wave, speed +5% per wave
+  const scaledData = { ...data };
+  if (currentWave > 0) {
+    scaledData.hp = Math.ceil(data.hp * (1 + currentWave * 0.15));
+    scaledData.speed = Math.round(data.speed * (1 + currentWave * 0.05));
+  }
+  enemies.push(new Enemy(x, y, scaledData));
 }
 
 function spawnPowerUp(x, y) {
@@ -152,9 +160,7 @@ function spawnPowerUp(x, y) {
 function findNearestEnemy(from) {
   let nearest = null;
   let minDist = Infinity;
-
   const targets = boss && boss.alive ? [...enemies, boss] : enemies;
-
   for (const e of targets) {
     if (!e.alive) continue;
     const d = distance(from, e);
@@ -164,35 +170,6 @@ function findNearestEnemy(from) {
     }
   }
   return nearest;
-}
-
-function addParticle(x, y, color, count = 5) {
-  for (let i = 0; i < count; i++) {
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 50 + Math.random() * 150;
-    const life = 0.3 + Math.random() * 0.3;
-    particles.push({
-      x, y,
-      vx: Math.cos(angle) * speed,
-      vy: Math.sin(angle) * speed,
-      life,
-      maxLife: life,
-      color,
-      radius: 2 + Math.random() * 3,
-    });
-  }
-}
-
-function addFloatingText(x, y, text, color, size = 14, life = 1.0, vy = -60) {
-  floatingTexts.push({ x, y, text, color, size, life, maxLife: life, vy });
-}
-
-function addVignette(color, duration = 0.5) {
-  vignette = { color, alpha: 0.15, life: duration, maxLife: duration };
-}
-
-function addDeathAnim(x, y, radius, color, label) {
-  deathAnims.push({ x, y, radius, color, label, age: 0, duration: 0.2 });
 }
 
 function getUpgradeCardIndex(mouse) {
@@ -215,14 +192,32 @@ function getUpgradeCardIndex(mouse) {
   return -1;
 }
 
+function saveHighScore() {
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem('llm-hunter-highscore', String(highScore));
+  }
+}
+
 // --- Update ---
 function update(dt) {
   renderer.updateShake(dt);
 
+  // Process input every tick
+  if (input.consumeClick()) handleClick();
+  const key = input.consumeKey();
+  if (key && state === STATE.UPGRADE_SELECT) {
+    const idx = key - 1;
+    if (idx >= 0 && idx < upgradeChoices.length) {
+      applyUpgrade(upgradeChoices[idx]);
+      audio.play('powerup');
+      startWave();
+    }
+  }
+
   if (state === STATE.MENU) return;
 
-  // Wave announcement timer (non-blocking — gameplay continues)
-  // Skip here for BOSS_WARNING — it has its own decrement below
+  // Wave announcement timer (skip for BOSS_WARNING — has its own below)
   if (announceTimer > 0 && state !== STATE.BOSS_WARNING) announceTimer -= dt;
 
   if (state === STATE.BOSS_WARNING) {
@@ -236,7 +231,7 @@ function update(dt) {
 
   if (state === STATE.UPGRADE_SELECT) {
     upgradeHover = getUpgradeCardIndex(input.mouse);
-    overlayFade = Math.min(overlayFade + dt * 4, 1); // 250ms fade-in
+    overlayFade = Math.min(overlayFade + dt * 4, 1);
     return;
   }
 
@@ -248,21 +243,12 @@ function update(dt) {
   // Hitstop — freeze gameplay but keep rendering
   if (hitstopTimer > 0) {
     hitstopTimer -= dt;
-    // Still update death anims during hitstop
-    for (let i = deathAnims.length - 1; i >= 0; i--) {
-      deathAnims[i].age += dt;
-      if (deathAnims[i].age >= deathAnims[i].duration) {
-        deathAnims[i] = deathAnims[deathAnims.length - 1];
-        deathAnims.pop();
-      }
-    }
+    fx.updateDeathAnimsOnly(dt);
     return;
   }
 
   // Player
   player.update(dt, input.mouse);
-
-  // Clamp player to screen
   player.x = Math.max(player.radius, Math.min(renderer.width - player.radius, player.x));
   player.y = Math.max(player.radius + 50, Math.min(renderer.height - player.radius, player.y));
 
@@ -273,7 +259,7 @@ function update(dt) {
       const dir = normalize(subtract(target, player));
       const baseAngle = Math.atan2(dir.y, dir.x);
       const shots = player.multiShot || 1;
-      const spreadAngle = shots > 1 ? 0.15 : 0; // radians between shots
+      const spreadAngle = shots > 1 ? 0.15 : 0;
 
       for (let s = 0; s < shots; s++) {
         const offset = (s - (shots - 1) / 2) * spreadAngle;
@@ -287,6 +273,8 @@ function update(dt) {
         if (player.projectileSpeedMult !== 1) {
           proj.speed *= player.projectileSpeedMult;
         }
+        proj.pierce = player.pierce;
+        proj.bounces = player.bounces;
         projectiles.push(proj);
       }
       player.shoot();
@@ -305,232 +293,41 @@ function update(dt) {
     }
   }
 
-  // Update enemies
-  for (const e of enemies) {
-    e.update(dt, player);
-  }
+  // Update entities
+  for (const e of enemies) e.update(dt, player);
+  for (const p of projectiles) p.update(dt);
+  for (const pu of powerups) pu.update(dt);
 
   // Update boss
   if (boss && boss.alive) {
     boss.update(dt, player);
-
-    // Clamp boss to screen
     boss.x = Math.max(boss.radius, Math.min(renderer.width - boss.radius, boss.x));
     boss.y = Math.max(boss.radius + 50, Math.min(renderer.height - boss.radius, boss.y));
 
     if (boss.enraged && !bossWasEnraged) {
       bossWasEnraged = true;
       audio.play('enrage');
-      addFloatingText(boss.x, boss.y - boss.radius - 20, 'ENRAGED!', '#f38ba8', 20);
+      fx.addFloatingText(boss.x, boss.y - boss.radius - 20, 'ENRAGED!', '#f38ba8', 20);
       renderer.shake(CONFIG.SCREEN_SHAKE.BOSS_KILL_INTENSITY * 0.6, CONFIG.SCREEN_SHAKE.BOSS_KILL_DURATION * 0.5);
-      hitstopTimer = 0.15; // dramatic pause on enrage
+      hitstopTimer = 0.15;
     }
 
     while (boss.pendingMinions.length > 0) {
       spawnEnemy(boss.pendingMinions.shift());
     }
-
-    for (const bp of boss.projectiles) {
-      if (circlesCollide(bp, player)) {
-        if (player.takeDamage(1)) {
-          addParticle(player.x, player.y, '#f38ba8', 8);
-          audio.play('playerHit');
-          player.applyKnockback(bp.x, bp.y, CONFIG.KNOCKBACK.BOSS_FORCE);
-          renderer.shake(CONFIG.SCREEN_SHAKE.HIT_INTENSITY, CONFIG.SCREEN_SHAKE.HIT_DURATION);
-          addFloatingText(player.x, player.y - 25, '-1', '#f38ba8', 18);
-        }
-        bp.alive = false;
-      }
-    }
   }
 
-  // Update projectiles
-  for (const p of projectiles) {
-    p.update(dt);
-  }
+  // Effects
+  fx.update(dt);
 
-  // Update powerups
-  for (const pu of powerups) {
-    pu.update(dt);
-  }
-
-  // Update particles (swap-remove instead of .filter for less GC)
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx * dt;
-    p.y += p.vy * dt;
-    p.life -= dt;
-    if (p.life <= 0) {
-      particles[i] = particles[particles.length - 1];
-      particles.pop();
-    }
-  }
-
-  // Update floating texts
-  for (let i = floatingTexts.length - 1; i >= 0; i--) {
-    const ft = floatingTexts[i];
-    ft.y += ft.vy * dt;
-    ft.life -= dt;
-    if (ft.life <= 0) {
-      floatingTexts[i] = floatingTexts[floatingTexts.length - 1];
-      floatingTexts.pop();
-    }
-  }
-
-  // Update vignette
-  if (vignette) {
-    vignette.life -= dt;
-    if (vignette.life <= 0) vignette = null;
-  }
-
-  // Update death animations
-  for (let i = deathAnims.length - 1; i >= 0; i--) {
-    deathAnims[i].age += dt;
-    if (deathAnims[i].age >= deathAnims[i].duration) {
-      deathAnims[i] = deathAnims[deathAnims.length - 1];
-      deathAnims.pop();
-    }
-  }
-
-  // Update spawn indicators
-  for (let i = spawnIndicators.length - 1; i >= 0; i--) {
-    spawnIndicators[i].life -= dt;
-    if (spawnIndicators[i].life <= 0) {
-      spawnIndicators[i] = spawnIndicators[spawnIndicators.length - 1];
-      spawnIndicators.pop();
-    }
-  }
-
-  // --- Collisions ---
-
-  // Projectiles vs enemies
-  for (const p of projectiles) {
-    if (!p.alive) continue;
-
-    for (const e of enemies) {
-      if (!e.alive) continue;
-      if (circlesCollide(p, e)) {
-        e.takeDamage(p.damage);
-        p.alive = false;
-        addParticle(p.x, p.y, '#89b4fa', 3);
-        addFloatingText(e.x, e.y - e.radius - 5, `-${p.damage}`, '#89b4fa', 10, 0.4, -80);
-        if (!e.alive) {
-          score += e.points;
-          player.stats.kills++;
-          addDeathAnim(e.x, e.y, e.radius, e.color, e.label);
-          addParticle(e.x, e.y, e.color, 8);
-          addFloatingText(e.x, e.y - e.radius - 15, `+${e.points}`,
-            e.points >= 50 ? '#fab387' : '#f9e2af',
-            e.points >= 50 ? 18 : e.points >= 25 ? 14 : 11,
-            e.points >= 50 ? 1.0 : e.points >= 25 ? 0.8 : 0.6,
-            e.points >= 50 ? -45 : e.points >= 25 ? -60 : -80);
-          spawnPowerUp(e.x, e.y);
-          audio.play('kill');
-          renderer.shake(CONFIG.SCREEN_SHAKE.KILL_INTENSITY, CONFIG.SCREEN_SHAKE.KILL_DURATION);
-          hitstopTimer = e.maxHp >= 3
-            ? CONFIG.HITSTOP.STRONG_KILL_DURATION
-            : CONFIG.HITSTOP.KILL_DURATION;
-        }
-        break;
-      }
-    }
-
-    if (p.alive && boss && boss.alive) {
-      if (circlesCollide(p, boss)) {
-        boss.takeDamage(p.damage);
-        p.alive = false;
-        addParticle(p.x, p.y, '#89b4fa', 3);
-        addFloatingText(boss.x, boss.y - boss.radius - 5, `-${p.damage}`, '#89b4fa', 12, 0.5, -70);
-        if (!boss.alive) {
-          score += boss.points;
-          player.stats.kills++;
-          player.stats.bossKills++;
-          addDeathAnim(boss.x, boss.y, boss.radius, boss.color, boss.label);
-          addParticle(boss.x, boss.y, boss.color, 35);
-          addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#fab387', 28, 1.5, -30);
-          audio.play('bossKill');
-          renderer.shake(CONFIG.SCREEN_SHAKE.BOSS_KILL_INTENSITY, CONFIG.SCREEN_SHAKE.BOSS_KILL_DURATION);
-          hitstopTimer = CONFIG.HITSTOP.BOSS_KILL_DURATION;
-          addVignette(CONFIG.COLORS.IDENTITY_GREEN, 0.6);
-        }
-      }
-    }
-  }
-
-  // Enemies vs player (with knockback) — skip spawning enemies
-  for (const e of enemies) {
-    if (!e.alive || e.isSpawning) continue;
-    if (circlesCollide(e, player)) {
-      if (player.takeDamage(1)) {
-        addParticle(player.x, player.y, '#f38ba8', 8);
-        audio.play('playerHit');
-        player.applyKnockback(e.x, e.y, CONFIG.KNOCKBACK.ENEMY_FORCE);
-        renderer.shake(CONFIG.SCREEN_SHAKE.HIT_INTENSITY, CONFIG.SCREEN_SHAKE.HIT_DURATION);
-        addFloatingText(player.x, player.y - 25, '-1', '#f38ba8', 18);
-      }
-      e.alive = false;
-      score += e.points;
-      player.stats.kills++;
-      addDeathAnim(e.x, e.y, e.radius, e.color, e.label);
-      addParticle(e.x, e.y, e.color, 5);
-      spawnPowerUp(e.x, e.y);
-      audio.play('kill');
-    }
-  }
-
-  // Boss body vs player (with knockback)
-  if (boss && boss.alive && circlesCollide(boss, player)) {
-    if (player.takeDamage(1)) {
-      addParticle(player.x, player.y, '#f38ba8', 8);
-      audio.play('playerHit');
-      player.applyKnockback(boss.x, boss.y, CONFIG.KNOCKBACK.BOSS_FORCE);
-      renderer.shake(CONFIG.SCREEN_SHAKE.HIT_INTENSITY, CONFIG.SCREEN_SHAKE.HIT_DURATION);
-      addFloatingText(player.x, player.y - 25, '-1', '#f38ba8', 18);
-    }
-  }
-
-  // Player vs powerups
-  for (const pu of powerups) {
-    if (!pu.alive) continue;
-    if (circlesCollide(pu, player)) {
-      pu.alive = false;
-      applyPowerUp(pu.type);
-      addParticle(pu.x, pu.y, pu.data.color, 12);
-      audio.play('powerup');
-      player.stats.powerups++;
-      addFloatingText(player.x, player.y - 35, pu.data.description, pu.data.color, 14);
-      addVignette(pu.data.color, 0.4);
-    }
-  }
-
-  // Clean up dead entities (swap-remove for less GC)
-  for (let i = enemies.length - 1; i >= 0; i--) {
-    if (!enemies[i].alive) {
-      enemies[i] = enemies[enemies.length - 1];
-      enemies.pop();
-    }
-  }
-  for (let i = projectiles.length - 1; i >= 0; i--) {
-    if (!projectiles[i].alive) {
-      projectiles[i] = projectiles[projectiles.length - 1];
-      projectiles.pop();
-    }
-  }
-  for (let i = powerups.length - 1; i >= 0; i--) {
-    if (!powerups[i].alive) {
-      powerups[i] = powerups[powerups.length - 1];
-      powerups.pop();
-    }
-  }
+  // Collisions
+  resolveCollisions({ projectiles, enemies, boss, player, powerups }, fx, collisionCallbacks);
 
   // Check player death
   if (!player.alive) {
     state = STATE.GAME_OVER;
     overlayFade = 0;
-    if (score > highScore) {
-      highScore = score;
-      localStorage.setItem('llm-hunter-highscore', String(highScore));
-    }
+    saveHighScore();
     return;
   }
 
@@ -538,10 +335,7 @@ function update(dt) {
   if (boss && !boss.alive) {
     state = STATE.LEVEL_COMPLETE;
     overlayFade = 0;
-    if (score > highScore) {
-      highScore = score;
-      localStorage.setItem('llm-hunter-highscore', String(highScore));
-    }
+    saveHighScore();
     return;
   }
 
@@ -549,7 +343,6 @@ function update(dt) {
     player.stats.wavesCleared++;
     currentWave++;
     if (currentWave > 0) {
-      // Show upgrade selection between waves
       upgradeChoices = pickRandomUpgrades(3, player);
       upgradeHover = -1;
       overlayFade = 0;
@@ -571,13 +364,9 @@ function applyPowerUp(type) {
         if (!e.alive) {
           score += e.points;
           player.stats.kills++;
-          addDeathAnim(e.x, e.y, e.radius, e.color, e.label);
-          addParticle(e.x, e.y, e.color, 8);
-          addFloatingText(e.x, e.y - e.radius - 15, `+${e.points}`,
-            e.points >= 50 ? '#fab387' : '#f9e2af',
-            e.points >= 50 ? 18 : e.points >= 25 ? 14 : 11,
-            e.points >= 50 ? 1.0 : e.points >= 25 ? 0.8 : 0.6,
-            e.points >= 50 ? -45 : e.points >= 25 ? -60 : -80);
+          fx.addDeathAnim(e.x, e.y, e.radius, e.color, e.label);
+          fx.addParticle(e.x, e.y, e.color, 8);
+          fx.addScoreText(e.x, e.y - e.radius - 15, e.points);
           audio.play('kill');
         }
       }
@@ -587,17 +376,36 @@ function applyPowerUp(type) {
           score += boss.points;
           player.stats.kills++;
           player.stats.bossKills++;
-          addDeathAnim(boss.x, boss.y, boss.radius, boss.color, boss.label);
-          addParticle(boss.x, boss.y, boss.color, 35);
-          addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#fab387', 28, 1.5, -30);
+          fx.addDeathAnim(boss.x, boss.y, boss.radius, boss.color, boss.label);
+          fx.addParticle(boss.x, boss.y, boss.color, 35);
+          fx.addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#fab387', 28, 1.5, -30);
           audio.play('bossKill');
-          addVignette(CONFIG.COLORS.IDENTITY_GREEN, 0.6);
+          fx.addVignette(CONFIG.COLORS.IDENTITY_GREEN, 0.6);
         }
       }
       renderer.shake(CONFIG.SCREEN_SHAKE.HIT_INTENSITY, CONFIG.SCREEN_SHAKE.HIT_DURATION);
       break;
     case 'GIT_REVERT':
       player.heal(1);
+      // Heal AoE (npm audit fix upgrade)
+      if (player.healAoe) {
+        const aoeRadius = 100;
+        fx.addParticle(player.x, player.y, CONFIG.COLORS.HEAL_PINK, 15);
+        for (const e of enemies) {
+          if (!e.alive) continue;
+          if (distance(player, e) <= aoeRadius) {
+            e.takeDamage(2);
+            fx.addParticle(e.x, e.y, CONFIG.COLORS.HEAL_PINK, 4);
+            if (!e.alive) {
+              score += e.points;
+              player.stats.kills++;
+              fx.addDeathAnim(e.x, e.y, e.radius, e.color, e.label);
+              fx.addScoreText(e.x, e.y - e.radius - 15, e.points);
+              audio.play('kill');
+            }
+          }
+        }
+      }
       break;
   }
 }
@@ -607,132 +415,32 @@ function render() {
   renderer.clear();
 
   if (state === STATE.MENU) {
-    ui.drawStartScreen();
+    ui.drawStartScreen(1 / 60);
     return;
   }
 
-  // Edge spawn indicators (under everything)
-  for (const si of spawnIndicators) {
-    const t = 1 - (si.life / si.maxLife); // 0→1
-    const alpha = 0.4 + t * 0.4;
-    renderer.ctx.save();
-    renderer.ctx.translate(si.x, si.y);
-    renderer.ctx.globalAlpha = alpha;
-    renderer.ctx.fillStyle = si.color;
-    renderer.ctx.beginPath();
-    renderer.ctx.arc(0, 0, 6 + t * 4, 0, Math.PI * 2);
-    renderer.ctx.fill();
-    // Pulsing ring
-    renderer.ctx.globalAlpha = alpha * 0.5;
-    renderer.ctx.strokeStyle = si.color;
-    renderer.ctx.lineWidth = 2;
-    renderer.ctx.beginPath();
-    renderer.ctx.arc(0, 0, 10 + t * 8, 0, Math.PI * 2);
-    renderer.ctx.stroke();
-    renderer.ctx.restore();
-  }
+  const ctx = renderer.ctx;
 
-  // Powerups (under everything)
-  for (const pu of powerups) {
-    pu.render(renderer.ctx);
-  }
+  // Under layer: spawn indicators, death anims
+  fx.renderUnder(ctx);
+
+  // Powerups
+  for (const pu of powerups) pu.render(ctx);
 
   // Enemies
-  for (const e of enemies) {
-    e.render(renderer.ctx);
-  }
+  for (const e of enemies) e.render(ctx);
 
   // Boss
-  if (boss && boss.alive) {
-    boss.render(renderer.ctx);
-  }
-
-  // Death animations
-  for (const da of deathAnims) {
-    const t = da.age / da.duration; // 0→1
-    const flashPhase = t < 0.25; // first 25% = white flash
-    const scale = 1 + t * 0.6; // expand to 1.6x
-    const alpha = 1 - t; // fade out
-
-    renderer.ctx.save();
-    renderer.ctx.globalAlpha = alpha;
-    renderer.ctx.translate(da.x, da.y);
-
-    // Body
-    renderer.ctx.fillStyle = flashPhase ? '#fff' : da.color;
-    renderer.ctx.beginPath();
-    renderer.ctx.arc(0, 0, da.radius * scale, 0, Math.PI * 2);
-    renderer.ctx.fill();
-
-    // Label (fades with body)
-    if (!flashPhase) {
-      const fontSize = Math.max(9, Math.min(14, da.radius * 0.7));
-      renderer.ctx.fillStyle = '#fff';
-      renderer.ctx.font = `bold ${fontSize}px ${CONFIG.FONT}`;
-      renderer.ctx.textAlign = 'center';
-      renderer.ctx.textBaseline = 'middle';
-      renderer.ctx.fillText(da.label, 0, 0);
-    }
-
-    renderer.ctx.restore();
-  }
+  if (boss && boss.alive) boss.render(ctx);
 
   // Projectiles
-  for (const p of projectiles) {
-    p.render(renderer.ctx);
-  }
+  for (const p of projectiles) p.render(ctx);
 
-  // Particles
-  for (const p of particles) {
-    const alpha = p.life / p.maxLife;
-    renderer.ctx.save();
-    renderer.ctx.globalAlpha = alpha;
-    renderer.ctx.fillStyle = p.color;
-    renderer.ctx.beginPath();
-    renderer.ctx.arc(p.x, p.y, p.radius * alpha, 0, Math.PI * 2);
-    renderer.ctx.fill();
-    renderer.ctx.restore();
-  }
-
-  // Floating texts
-  for (const ft of floatingTexts) {
-    const lifeRatio = ft.life / (ft.maxLife || 1);
-    renderer.ctx.save();
-    renderer.ctx.globalAlpha = Math.min(1, lifeRatio * 2);
-    renderer.ctx.fillStyle = ft.color;
-    renderer.ctx.font = `bold ${ft.size}px ${CONFIG.FONT}`;
-    renderer.ctx.textAlign = 'center';
-    renderer.ctx.textBaseline = 'middle';
-    // Outline for boss-tier scores (size >= 28)
-    if (ft.size >= 28) {
-      renderer.ctx.strokeStyle = '#1e1e2e';
-      renderer.ctx.lineWidth = 2;
-      renderer.ctx.strokeText(ft.text, ft.x, ft.y);
-    }
-    renderer.ctx.fillText(ft.text, ft.x, ft.y);
-    renderer.ctx.restore();
-  }
+  // Over layer: particles, floating texts, vignette
+  fx.renderOver(ctx, renderer);
 
   // Player
-  if (player) {
-    player.render(renderer.ctx);
-  }
-
-  // Vignette overlay
-  if (vignette) {
-    const ctx = renderer.ctx;
-    const w = renderer.width;
-    const h = renderer.height;
-    const t = vignette.life / vignette.maxLife; // 1→0
-    ctx.save();
-    ctx.globalAlpha = vignette.alpha * t;
-    const grad = ctx.createRadialGradient(w / 2, h / 2, w * 0.3, w / 2, h / 2, w * 0.7);
-    grad.addColorStop(0, 'transparent');
-    grad.addColorStop(1, vignette.color);
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, w, h);
-    ctx.restore();
-  }
+  if (player) player.render(ctx);
 
   // HUD
   if (player && state !== STATE.MENU) {
@@ -742,7 +450,7 @@ function render() {
     if (boss) {
       waveProgress = boss.alive ? (1 - boss.hp / boss.maxHp) : 1;
     } else if (state === STATE.BOSS_WARNING) {
-      waveProgress = 1; // All waves cleared, boss incoming
+      waveProgress = 1;
     } else if (waveEnemyTotal > 0) {
       const remaining = spawnQueue.length + enemies.length;
       waveProgress = 1 - remaining / waveEnemyTotal;
@@ -752,34 +460,32 @@ function render() {
 
   // Overlays
   if (announceTimer > 0 && state === STATE.PLAYING) {
-    const alpha = Math.min(1, announceTimer);
-    ui.drawWaveAnnouncement(announceText, alpha);
+    ui.drawWaveAnnouncement(announceText, Math.min(1, announceTimer));
   }
 
   if (state === STATE.BOSS_WARNING) {
-    const alpha = Math.min(1, announceTimer / 1.5);
-    ui.drawBossWarning(alpha);
+    ui.drawBossWarning(Math.min(1, announceTimer / 1.5));
   }
 
   if (state === STATE.UPGRADE_SELECT) {
-    renderer.ctx.save();
-    renderer.ctx.globalAlpha = overlayFade;
+    ctx.save();
+    ctx.globalAlpha = overlayFade;
     drawUpgradeScreen();
-    renderer.ctx.restore();
+    ctx.restore();
   }
 
   if (state === STATE.GAME_OVER) {
-    renderer.ctx.save();
-    renderer.ctx.globalAlpha = overlayFade;
+    ctx.save();
+    ctx.globalAlpha = overlayFade;
     ui.drawGameOver(score, highScore, player ? player.stats : null);
-    renderer.ctx.restore();
+    ctx.restore();
   }
 
   if (state === STATE.LEVEL_COMPLETE) {
-    renderer.ctx.save();
-    renderer.ctx.globalAlpha = overlayFade;
+    ctx.save();
+    ctx.globalAlpha = overlayFade;
     ui.drawLevelComplete(score, player ? player.stats : null);
-    renderer.ctx.restore();
+    ctx.restore();
   }
 }
 
@@ -804,11 +510,9 @@ function drawUpgradeScreen() {
   const w = renderer.width;
   const h = renderer.height;
 
-  // Overlay
   ctx.fillStyle = CONFIG.COLORS.OVERLAY_BG;
   ctx.fillRect(0, 0, w, h);
 
-  // Title
   ctx.fillStyle = CONFIG.COLORS.TEXT;
   ctx.font = `bold 28px ${CONFIG.FONT}`;
   ctx.textAlign = 'center';
@@ -818,7 +522,6 @@ function drawUpgradeScreen() {
   ctx.font = `14px ${CONFIG.FONT}`;
   ctx.fillText('// pick one to continue', w / 2, h / 2 - 120);
 
-  // Cards
   const cardW = Math.min(220, (w - 80) / 3 - 30);
   const cardH = 240;
   const gap = 30;
@@ -831,7 +534,6 @@ function drawUpgradeScreen() {
     const cx = startX + i * (cardW + gap);
     const hovered = upgradeHover === i;
 
-    // Hover glow
     if (hovered) {
       ctx.save();
       ctx.shadowColor = CONFIG.COLORS.ACCENT;
@@ -843,7 +545,6 @@ function drawUpgradeScreen() {
       ctx.restore();
     }
 
-    // Card background
     ctx.fillStyle = hovered ? 'rgba(69,71,90,0.95)' : 'rgba(49,50,68,0.85)';
     ctx.strokeStyle = hovered ? CONFIG.COLORS.ACCENT : 'rgba(255,255,255,0.1)';
     ctx.lineWidth = hovered ? 2 : 1;
@@ -852,23 +553,19 @@ function drawUpgradeScreen() {
     ctx.fill();
     ctx.stroke();
 
-    // Icon
     ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : CONFIG.COLORS.TEXT;
     ctx.font = `bold 42px ${CONFIG.FONT}`;
     ctx.textAlign = 'center';
     ctx.fillText(up.icon, cx + cardW / 2, startY + 65);
 
-    // Name (accent color for hierarchy)
-    ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : CONFIG.COLORS.ACCENT;
+    ctx.fillStyle = CONFIG.COLORS.ACCENT;
     ctx.font = `bold 14px ${CONFIG.FONT}`;
     ctx.fillText(up.name, cx + cardW / 2, startY + 115);
 
-    // Description (lighter, smaller, word-wrapped)
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
     ctx.font = `12px ${CONFIG.FONT}`;
     wrapText(ctx, up.description, cx + cardW / 2, startY + 145, cardW - 24, 16);
 
-    // Number hint
     ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : 'rgba(255,255,255,0.2)';
     ctx.font = `13px ${CONFIG.FONT}`;
     ctx.fillText(`[${i + 1}]`, cx + cardW / 2, startY + cardH - 18);
@@ -893,28 +590,9 @@ function handleClick() {
       startWave();
     }
   } else if (state === STATE.GAME_OVER || state === STATE.LEVEL_COMPLETE) {
-    startGame(); // One-click restart
+    startGame();
   }
 }
 
 // Start
 engine.start();
-
-// Use rAF-aligned click polling instead of setInterval
-function pollClicks() {
-  if (input.consumeClick()) {
-    handleClick();
-  }
-  // Keyboard shortcuts for upgrade selection
-  const key = input.consumeKey();
-  if (key && state === STATE.UPGRADE_SELECT) {
-    const idx = key - 1;
-    if (idx >= 0 && idx < upgradeChoices.length) {
-      applyUpgrade(upgradeChoices[idx]);
-      audio.play('powerup');
-      startWave();
-    }
-  }
-  requestAnimationFrame(pollClicks);
-}
-pollClicks();

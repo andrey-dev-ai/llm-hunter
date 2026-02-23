@@ -24,6 +24,9 @@ export class Projectile {
     this.symbol = symbol || '{}';
     this.alive = true;
     this.age = 0;
+    this.pierce = 0;     // extra enemies to pass through
+    this.bounces = 0;    // ricochet count remaining
+    this._hitEnemies = new Set(); // prevent double-hit on pierce
     this._trail = [];
   }
 

@@ -15,10 +15,21 @@ export class Player {
     this.baseSpeed = CONFIG.PLAYER.SPEED;
     this.multiShot = 1;
     this.projectileSpeedMult = 1;
+    this.pierce = 0;        // extra enemies projectile passes through
+    this.bounces = 0;       // ricochet count per projectile
     this.invulnerable = 0;
     this.speedBoostTimer = 0;
     this._symbolIndex = 0;
     this._bobPhase = 0;
+    // Shield (Docker Container)
+    this.shield = false;
+    this.shieldCooldown = 0;
+    this.shieldMaxCooldown = 15;
+    // Kill counter AoE (Stack Overflow Answer)
+    this.killAoeEnabled = false;
+    this._killCounter = 0;
+    // Heal AoE (npm audit fix)
+    this.healAoe = false;
     // Knockback
     this._knockbackVx = 0;
     this._knockbackVy = 0;
@@ -40,6 +51,11 @@ export class Player {
 
   takeDamage(amount) {
     if (this.invulnerable > 0) return false;
+    // Shield absorbs one hit
+    if (this.shield && this.shieldCooldown <= 0) {
+      this.shieldCooldown = this.shieldMaxCooldown;
+      return 'shielded';
+    }
     this.hp = Math.max(0, this.hp - amount);
     this.invulnerable = CONFIG.PLAYER.INVULNERABLE_TIME;
     return true;
@@ -87,6 +103,7 @@ export class Player {
     if (this.shootCooldown > 0) this.shootCooldown -= dt;
     if (this.invulnerable > 0) this.invulnerable -= dt;
     if (this.speedBoostTimer > 0) this.speedBoostTimer -= dt;
+    if (this.shieldCooldown > 0) this.shieldCooldown -= dt;
 
     // Animation
     this._bobPhase += dt * 3;
@@ -187,6 +204,21 @@ export class Player {
       ctx.beginPath();
       ctx.arc(this.x, this.y, this.radius + 10, 0, Math.PI * 2);
       ctx.stroke();
+      ctx.restore();
+    }
+
+    // Shield indicator
+    if (this.shield) {
+      const ready = this.shieldCooldown <= 0;
+      ctx.save();
+      ctx.globalAlpha = ready ? 0.4 : 0.1;
+      ctx.strokeStyle = ready ? '#89b4fa' : '#45475a';
+      ctx.lineWidth = ready ? 3 : 1;
+      ctx.setLineDash(ready ? [] : [4, 4]);
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius + 14, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
       ctx.restore();
     }
   }

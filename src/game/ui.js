@@ -10,10 +10,30 @@ const isMobile = /Android|iPhone|iPad|iPod|Opera Mini|IEMobile/i.test(
   typeof navigator !== 'undefined' ? navigator.userAgent : ''
 );
 
+// Matrix-style falling code symbols
+const CODE_SYMBOLS = ['{', '}', ';', '=', '=>', 'const', 'let', 'if', '()', '</', '/>', '&&', '||', '++', '!=', '[]', '0', '1'];
+
 export class UI {
   constructor(renderer) {
     this.renderer = renderer;
     this.ctx = renderer.ctx;
+    this._codeColumns = null; // lazy init for falling code
+  }
+
+  _initCodeColumns() {
+    const w = this.renderer.width;
+    const cols = Math.floor(w / 60); // ~60px per column
+    this._codeColumns = [];
+    for (let i = 0; i < cols; i++) {
+      this._codeColumns.push({
+        x: (i + 0.5) * (w / cols),
+        y: Math.random() * this.renderer.height,
+        speed: 30 + Math.random() * 50,
+        chars: Array.from({ length: 6 + Math.floor(Math.random() * 6) }, () =>
+          CODE_SYMBOLS[Math.floor(Math.random() * CODE_SYMBOLS.length)]
+        ),
+      });
+    }
   }
 
   drawHUD(player, score, waveNum, waveTotal, waveProgress) {
@@ -76,7 +96,7 @@ export class UI {
     }
   }
 
-  drawStartScreen() {
+  drawStartScreen(dt) {
     const ctx = this.ctx;
     const w = this.renderer.width;
     const h = this.renderer.height;
@@ -84,7 +104,33 @@ export class UI {
     ctx.fillStyle = CONFIG.COLORS.OVERLAY_BG;
     ctx.fillRect(0, 0, w, h);
 
-    // Title — dual color identity
+    // --- Falling code background (Matrix-style) ---
+    if (!this._codeColumns) this._initCodeColumns();
+
+    const frameDt = dt || 0.016;
+    ctx.font = `13px ${F}`;
+    ctx.textAlign = 'center';
+    for (const col of this._codeColumns) {
+      col.y += col.speed * frameDt;
+      if (col.y > h + 100) {
+        col.y = -col.chars.length * 22;
+        // Refresh symbols
+        for (let c = 0; c < col.chars.length; c++) {
+          col.chars[c] = CODE_SYMBOLS[Math.floor(Math.random() * CODE_SYMBOLS.length)];
+        }
+      }
+      for (let c = 0; c < col.chars.length; c++) {
+        const cy = col.y + c * 22;
+        if (cy < -20 || cy > h + 20) continue;
+        const fadeFromCenter = Math.abs(cy - h / 2) / (h / 2);
+        ctx.globalAlpha = 0.12 + fadeFromCenter * 0.08;
+        ctx.fillStyle = CONFIG.COLORS.GRID;
+        ctx.fillText(col.chars[c], col.x, cy);
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // --- Title with glow ---
     ctx.font = `bold 48px ${F}`;
     ctx.textAlign = 'center';
     const titleY = h / 2 - 60;
@@ -92,41 +138,76 @@ export class UI {
     const hunterW = ctx.measureText('Hunter').width;
     const titleStartX = w / 2 - (llmW + hunterW) / 2;
     ctx.textAlign = 'left';
+
+    // "LLM " with blue glow
+    ctx.save();
+    ctx.shadowColor = CONFIG.COLORS.ACCENT;
+    ctx.shadowBlur = 20;
     ctx.fillStyle = CONFIG.COLORS.ACCENT;
     ctx.fillText('LLM ', titleStartX, titleY);
+    ctx.restore();
+
+    // "Hunter" with green glow
+    ctx.save();
+    ctx.shadowColor = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.shadowBlur = 20;
     ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
     ctx.fillText('Hunter', titleStartX + llmW, titleY);
+    ctx.restore();
+
     ctx.textAlign = 'center';
 
-    // Subtitle
+    // --- Subtitle ---
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
     ctx.font = `bold 20px ${F}`;
     ctx.fillText(CONFIG.GAME.SUBTITLE, w / 2, h / 2 - 20);
 
-    // Code decoration
-    ctx.fillStyle = '#e06c75';
+    // --- Code decoration with syntax highlighting ---
+    // while (alive) { shoot(code); }
     ctx.font = `16px ${F}`;
-    ctx.fillText('while (alive) { shoot(code); }', w / 2, h / 2 + 20);
+    const codeParts = [
+      { text: 'while', color: '#c678dd' },      // keyword — purple
+      { text: ' (', color: CONFIG.COLORS.TEXT_LIGHT },
+      { text: 'alive', color: '#e06c75' },       // variable — red
+      { text: ') { ', color: CONFIG.COLORS.TEXT_LIGHT },
+      { text: 'shoot', color: '#61afef' },       // function — blue
+      { text: '(', color: CONFIG.COLORS.TEXT_LIGHT },
+      { text: 'code', color: '#98c379' },        // string — green
+      { text: '); }', color: CONFIG.COLORS.TEXT_LIGHT },
+    ];
+    // Measure total width for centering
+    let totalCodeW = 0;
+    for (const part of codeParts) totalCodeW += ctx.measureText(part.text).width;
+    let codeX = w / 2 - totalCodeW / 2;
+    ctx.textAlign = 'left';
+    for (const part of codeParts) {
+      ctx.fillStyle = part.color;
+      ctx.fillText(part.text, codeX, h / 2 + 20);
+      codeX += ctx.measureText(part.text).width;
+    }
+    ctx.textAlign = 'center';
 
-    // Start prompt (pulsing green cursor — always visible)
+    // --- CTA (pulsing green — always visible) ---
     const startPulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(Date.now() / 400));
     ctx.save();
     ctx.globalAlpha = startPulse;
+    ctx.shadowColor = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.shadowBlur = 10;
     ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
     ctx.font = `bold 18px ${F}`;
-    ctx.fillText('> ' + CONFIG.GAME.START_TEXT + ' _', w / 2, h / 2 + 80);
+    ctx.fillText('> ' + CONFIG.GAME.START_TEXT + ' _', w / 2, h / 2 + 65);
     ctx.restore();
 
-    // Controls hint
+    // --- Controls hint ---
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
     ctx.font = `14px ${F}`;
-    ctx.fillText('Mouse = Move  |  Auto-fire = ON', w / 2, h / 2 + 130);
+    ctx.fillText('Mouse = Move  |  Auto-fire = ON', w / 2, h / 2 + 110);
 
-    // Mobile warning
+    // --- Mobile warning ---
     if (isMobile) {
       ctx.fillStyle = CONFIG.COLORS.IDENTITY_RED;
       ctx.font = `bold 14px ${F}`;
-      ctx.fillText('Best played on desktop with mouse!', w / 2, h / 2 + 160);
+      ctx.fillText('Best played on desktop with mouse!', w / 2, h / 2 + 140);
     }
   }
 
