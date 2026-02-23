@@ -22,6 +22,8 @@ export const CONFIG = {
     WARNING: '#f9e2af',
     IDENTITY_GREEN: '#50fa7b',
     IDENTITY_RED: '#ff5555',
+    HEAL_PINK: '#f5c2e7',
+    REWARD_GOLD: '#f9e2af',
   },
 
   FONT: "'JetBrains Mono', monospace",
@@ -49,12 +51,12 @@ export const CONFIG = {
 
   BOSS: {
     SHOOT_RATE: 1.0,       // seconds between boss shots
-    PROJECTILE_SPEED: 300,
+    PROJECTILE_SPEED: 380,
     ENRAGE_THRESHOLD: 0.5, // phase 2 at 50% HP
     MINION_INTERVAL: 5,    // seconds between minion spawns (phase 2)
     ENRAGE_SPEED_MULT: 1.5,
     ENRAGE_SHOOT_MULT: 0.6, // faster shooting in phase 2
-    SPREAD_ANGLE: 0.3,     // radians for spread shot
+    SPREAD_ANGLE: 0.5,     // radians for spread shot (wider cone in enrage)
   },
 
   KNOCKBACK: {

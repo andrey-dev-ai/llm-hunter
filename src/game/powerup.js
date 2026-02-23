@@ -19,7 +19,7 @@ export const POWERUP_TYPES = {
   GIT_REVERT: {
     name: 'Git Revert',
     icon: '+HP',
-    color: '#4ade80',
+    color: '#f5c2e7',
     description: 'git revert HEAD~1',
     weight: 2,  // rarest — healing is valuable
   },

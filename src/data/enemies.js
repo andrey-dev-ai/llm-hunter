@@ -12,10 +12,10 @@ export const ENEMY_TYPES = {
   BUBBLE:      { name: 'Bubble',      label: 'Bbbl',   hp: 1, speed: 75,  points: 10, radius: 16, color: '#2d6e2d', behavior: 'chase', shape: 'roundRect' },
 
   // Wave 2 — Automation tools (orbit) — hexagon (workflow nodes)
-  ZAPIER:      { name: 'Zapier',      label: 'Zap',    hp: 2, speed: 120, points: 25, radius: 20, color: '#ff4a00', behavior: 'orbit', shape: 'hexagon' },
-  MAKE:        { name: 'Make',        label: 'Make',   hp: 2, speed: 110, points: 25, radius: 20, color: '#6d00cc', behavior: 'orbit', shape: 'hexagon' },
-  N8N:         { name: 'n8n',         label: 'n8n',    hp: 2, speed: 115, points: 25, radius: 18, color: '#ea4b71', behavior: 'orbit', shape: 'hexagon' },
-  AIRTABLE:    { name: 'Airtable',    label: 'Air',    hp: 2, speed: 100, points: 25, radius: 20, color: '#18bfff', behavior: 'orbit', shape: 'hexagon' },
+  ZAPIER:      { name: 'Zapier',      label: 'Zap',    hp: 2, speed: 155, points: 25, radius: 20, color: '#ff4a00', behavior: 'orbit', shape: 'hexagon' },
+  MAKE:        { name: 'Make',        label: 'Make',   hp: 2, speed: 140, points: 25, radius: 20, color: '#6d00cc', behavior: 'orbit', shape: 'hexagon' },
+  N8N:         { name: 'n8n',         label: 'n8n',    hp: 2, speed: 150, points: 25, radius: 18, color: '#ea4b71', behavior: 'orbit', shape: 'hexagon' },
+  AIRTABLE:    { name: 'Airtable',    label: 'Air',    hp: 2, speed: 130, points: 25, radius: 20, color: '#18bfff', behavior: 'orbit', shape: 'hexagon' },
 
   // Wave 3 — AI coding tools (dash) — octagon (danger signs)
   CURSOR:      { name: 'Cursor',      label: 'Crsr',   hp: 3, speed: 155, points: 50, radius: 22, color: '#585b8a', behavior: 'dash', shape: 'octagon' },

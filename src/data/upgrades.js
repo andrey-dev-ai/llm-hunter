@@ -15,6 +15,7 @@ export const UPGRADES = [
     name: 'Code Review',
     icon: '!!',
     description: 'Damage +1',
+    maxStacks: 2,
     apply(player) { player.damage += 1; },
   },
   {
@@ -22,6 +23,7 @@ export const UPGRADES = [
     name: 'Caffeine Boost',
     icon: '~~',
     description: 'Move speed +15%',
+    maxStacks: 2,
     apply(player) { player.baseSpeed *= 1.15; },
   },
   {
@@ -29,6 +31,7 @@ export const UPGRADES = [
     name: 'git stash',
     icon: '+H',
     description: 'Max HP +2, heal full',
+    maxStacks: 3,
     apply(player) { player.maxHp += 2; player.hp = player.maxHp; },
   },
   {

@@ -26,8 +26,10 @@ export const LEVELS = [
           { type: ENEMY_TYPES.MAKE, count: 6 },
           { type: ENEMY_TYPES.N8N, count: 6 },
           { type: ENEMY_TYPES.AIRTABLE, count: 5 },
+          { type: ENEMY_TYPES.WEBFLOW, count: 3 },
+          { type: ENEMY_TYPES.WIX, count: 3 },
         ],
-        spawnInterval: 0.7,
+        spawnInterval: 0.5,
       },
       {
         enemies: [

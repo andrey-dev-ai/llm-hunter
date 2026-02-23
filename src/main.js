@@ -214,7 +214,8 @@ function update(dt) {
   if (state === STATE.MENU) return;
 
   // Wave announcement timer (non-blocking — gameplay continues)
-  if (announceTimer > 0) announceTimer -= dt;
+  // Skip here for BOSS_WARNING — it has its own decrement below
+  if (announceTimer > 0 && state !== STATE.BOSS_WARNING) announceTimer -= dt;
 
   if (state === STATE.BOSS_WARNING) {
     announceTimer -= dt;
@@ -444,8 +445,12 @@ function update(dt) {
         addFloatingText(player.x, player.y - 25, '-1', '#f38ba8', 18);
       }
       e.alive = false;
+      score += e.points;
+      player.stats.kills++;
       addDeathAnim(e.x, e.y, e.radius, e.color, e.label);
       addParticle(e.x, e.y, e.color, 5);
+      spawnPowerUp(e.x, e.y);
+      audio.play('kill');
     }
   }
 
@@ -677,6 +682,8 @@ function render() {
     let waveProgress;
     if (boss) {
       waveProgress = boss.alive ? (1 - boss.hp / boss.maxHp) : 1;
+    } else if (state === STATE.BOSS_WARNING) {
+      waveProgress = 1; // All waves cleared, boss incoming
     } else if (waveEnemyTotal > 0) {
       const remaining = spawnQueue.length + enemies.length;
       waveProgress = 1 - remaining / waveEnemyTotal;

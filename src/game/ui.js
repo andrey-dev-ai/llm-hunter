@@ -59,7 +59,7 @@ export class UI {
       const barY = 34;
       ctx.fillStyle = CONFIG.COLORS.HUD_BORDER;
       ctx.fillRect(barX, barY, barW, barH);
-      ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+      ctx.fillStyle = CONFIG.COLORS.ACCENT;
       ctx.fillRect(barX, barY, barW * waveProgress, barH);
     }
   }
@@ -165,7 +165,7 @@ export class UI {
 
     // New high score!
     if (score >= highScore && score > 0) {
-      ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+      ctx.fillStyle = CONFIG.COLORS.REWARD_GOLD;
       ctx.font = `bold 16px ${F}`;
       ctx.fillText('NEW HIGH SCORE!', w / 2, h / 2 + 40);
     }
@@ -248,10 +248,11 @@ export class UI {
     ctx.textAlign = 'center';
     ctx.fillText('// git push --force', w / 2, h / 2 - 110);
 
-    ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.fillStyle = CONFIG.COLORS.REWARD_GOLD;
     ctx.font = `bold 42px ${F}`;
     ctx.fillText('LEVEL COMPLETE!', w / 2, h / 2 - 60);
 
+    ctx.fillStyle = CONFIG.COLORS.TEXT;
     ctx.font = `24px ${F}`;
     ctx.fillText(`Score: ${score}`, w / 2, h / 2 - 15);
 
