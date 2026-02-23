@@ -70,6 +70,15 @@ export class Renderer {
     }
     this.ctx.stroke();
 
+    // Edge vignette — darkens edges, focuses attention on center
+    const cx = this.width / 2;
+    const cy = this.height / 2;
+    const edgeGrad = this.ctx.createRadialGradient(cx, cy, this.width * 0.35, cx, cy, this.width * 0.75);
+    edgeGrad.addColorStop(0, 'transparent');
+    edgeGrad.addColorStop(1, 'rgba(17,17,27,0.4)');
+    this.ctx.fillStyle = edgeGrad;
+    this.ctx.fillRect(0, 0, this.width, this.height);
+
     // Apply shake offset after clearing
     this.applyShake();
   }

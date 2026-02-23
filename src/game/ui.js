@@ -26,16 +26,28 @@ export class UI {
     ctx.fillStyle = CONFIG.COLORS.HUD_BORDER;
     ctx.fillRect(0, 50, w, 1);
 
-    // HP hearts
-    const heartSize = 20;
-    for (let i = 0; i < player.maxHp; i++) {
-      const hx = 20 + i * (heartSize + 6);
-      const hy = 25;
+    // HP hearts (compact mode for high maxHP)
+    const maxHeartArea = w / 3 - 40; // max space before score
+    const heartSize = player.maxHp > 10 ? 14 : 20;
+    const heartGap = player.maxHp > 10 ? 3 : 6;
+    const maxVisible = Math.floor(maxHeartArea / (heartSize + heartGap));
 
-      if (i < player.hp) {
-        this._drawHeart(ctx, hx, hy, heartSize / 2, CONFIG.COLORS.HP_FULL);
-      } else {
-        this._drawHeart(ctx, hx, hy, heartSize / 2, CONFIG.COLORS.HUD_BORDER);
+    if (player.maxHp > maxVisible) {
+      // Fallback: one heart + numeric display
+      this._drawHeart(ctx, 20, 25, 10, player.hp > 0 ? CONFIG.COLORS.HP_FULL : CONFIG.COLORS.HUD_BORDER);
+      ctx.fillStyle = CONFIG.COLORS.TEXT;
+      ctx.font = `bold 16px ${F}`;
+      ctx.textAlign = 'left';
+      ctx.fillText(`${player.hp}/${player.maxHp}`, 38, 30);
+    } else {
+      for (let i = 0; i < player.maxHp; i++) {
+        const hx = 20 + i * (heartSize + heartGap);
+        const hy = 25;
+        if (i < player.hp) {
+          this._drawHeart(ctx, hx, hy, heartSize / 2, CONFIG.COLORS.HP_FULL);
+        } else {
+          this._drawHeart(ctx, hx, hy, heartSize / 2, CONFIG.COLORS.HUD_BORDER);
+        }
       }
     }
 

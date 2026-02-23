@@ -43,6 +43,7 @@ let particles = [];
 let floatingTexts = [];
 let deathAnims = [];
 let hitstopTimer = 0;
+let spawnIndicators = []; // { x, y, color, life, maxLife }
 let bossWasEnraged = false;
 let waveEnemyTotal = 0;
 let upgradeChoices = [];
@@ -71,6 +72,7 @@ function startGame() {
   floatingTexts = [];
   deathAnims = [];
   hitstopTimer = 0;
+  spawnIndicators = [];
   bossWasEnraged = false;
   vignette = null;
   startWave();
@@ -132,6 +134,11 @@ function spawnEnemy(data) {
     case 2: x = Math.random() * renderer.width; y = renderer.height + margin; break;
     case 3: x = -margin; y = Math.random() * renderer.height; break;
   }
+
+  // Edge spawn indicator — clamped to screen edge
+  const ix = Math.max(8, Math.min(renderer.width - 8, x));
+  const iy = Math.max(58, Math.min(renderer.height - 8, y)); // below HUD
+  spawnIndicators.push({ x: ix, y: iy, color: data.color || '#fff', life: 0.5, maxLife: 0.5 });
 
   enemies.push(new Enemy(x, y, data));
 }
@@ -385,6 +392,15 @@ function update(dt) {
     }
   }
 
+  // Update spawn indicators
+  for (let i = spawnIndicators.length - 1; i >= 0; i--) {
+    spawnIndicators[i].life -= dt;
+    if (spawnIndicators[i].life <= 0) {
+      spawnIndicators[i] = spawnIndicators[spawnIndicators.length - 1];
+      spawnIndicators.pop();
+    }
+  }
+
   // --- Collisions ---
 
   // Projectiles vs enemies
@@ -593,6 +609,27 @@ function render() {
   if (state === STATE.MENU) {
     ui.drawStartScreen();
     return;
+  }
+
+  // Edge spawn indicators (under everything)
+  for (const si of spawnIndicators) {
+    const t = 1 - (si.life / si.maxLife); // 0→1
+    const alpha = 0.4 + t * 0.4;
+    renderer.ctx.save();
+    renderer.ctx.translate(si.x, si.y);
+    renderer.ctx.globalAlpha = alpha;
+    renderer.ctx.fillStyle = si.color;
+    renderer.ctx.beginPath();
+    renderer.ctx.arc(0, 0, 6 + t * 4, 0, Math.PI * 2);
+    renderer.ctx.fill();
+    // Pulsing ring
+    renderer.ctx.globalAlpha = alpha * 0.5;
+    renderer.ctx.strokeStyle = si.color;
+    renderer.ctx.lineWidth = 2;
+    renderer.ctx.beginPath();
+    renderer.ctx.arc(0, 0, 10 + t * 8, 0, Math.PI * 2);
+    renderer.ctx.stroke();
+    renderer.ctx.restore();
   }
 
   // Powerups (under everything)
