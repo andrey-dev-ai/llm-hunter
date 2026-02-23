@@ -152,7 +152,12 @@ export class Boss {
       p.age += dt;
       if (p.age > 5) p.alive = false;
     }
-    this.projectiles = this.projectiles.filter(p => p.alive);
+    for (let i = this.projectiles.length - 1; i >= 0; i--) {
+      if (!this.projectiles[i].alive) {
+        this.projectiles[i] = this.projectiles[this.projectiles.length - 1];
+        this.projectiles.pop();
+      }
+    }
   }
 
   render(ctx) {
@@ -266,20 +271,45 @@ export class Boss {
 
     ctx.restore();
 
-    // Render boss projectiles
+    // Render boss projectiles (with trail)
     for (const p of this.projectiles) {
+      // Trail (3 ghost images)
+      for (let t = 3; t >= 1; t--) {
+        const trailX = p.x - p.dirX * p.speed * 0.02 * t;
+        const trailY = p.y - p.dirY * p.speed * 0.02 * t;
+        ctx.save();
+        ctx.translate(trailX, trailY);
+        ctx.globalAlpha = 0.1 * (4 - t);
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(0, 0, p.radius - t, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+      // Main body
       ctx.save();
       ctx.translate(p.x, p.y);
+      // Larger glow
+      const pulseR = p.radius + 6 + Math.sin(p.age * 12) * 2;
       ctx.fillStyle = '#ef4444';
-      ctx.globalAlpha = 0.4;
+      ctx.globalAlpha = 0.6;
       ctx.beginPath();
-      ctx.arc(0, 0, p.radius + 4, 0, Math.PI * 2);
+      ctx.arc(0, 0, pulseR, 0, Math.PI * 2);
       ctx.fill();
+      // Core
       ctx.globalAlpha = 1;
       ctx.fillStyle = '#ef4444';
-      ctx.font = `bold 14px ${CONFIG.FONT}`;
+      ctx.beginPath();
+      ctx.arc(0, 0, p.radius, 0, Math.PI * 2);
+      ctx.fill();
+      // Text with outline
+      ctx.font = `bold 18px ${CONFIG.FONT}`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      ctx.strokeStyle = '#1e1e2e';
+      ctx.lineWidth = 2;
+      ctx.strokeText(p.text, 0, 0);
+      ctx.fillStyle = '#fff';
       ctx.fillText(p.text, 0, 0);
       ctx.restore();
     }

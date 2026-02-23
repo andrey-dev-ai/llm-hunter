@@ -47,6 +47,7 @@ export class Enemy {
     this._dashTimer = 1 + Math.random() * 2;
     this._isDashing = false;
     this._dashDuration = 0;
+    this._dashTelegraph = false; // true during 0.3s warning before dash
     // Orbit direction (1 or -1)
     this._orbitDir = Math.random() > 0.5 ? 1 : -1;
     // Spawn animation
@@ -86,22 +87,31 @@ export class Enemy {
         break;
       }
       case 'dash': {
-        // Alternate between slow creep and fast dash
+        // Alternate between slow creep → telegraph → fast dash
         if (this._isDashing) {
           this.x += dir.x * this.speed * 2.5 * dt;
           this.y += dir.y * this.speed * 2.5 * dt;
           this._dashDuration -= dt;
           if (this._dashDuration <= 0) {
             this._isDashing = false;
+            this._dashTelegraph = false;
             this._dashTimer = 1.5 + Math.random() * 1.5;
+          }
+        } else if (this._dashTelegraph) {
+          // Telegraph phase — freeze in place, visual warning
+          this._dashTimer -= dt;
+          if (this._dashTimer <= 0) {
+            this._isDashing = true;
+            this._dashTelegraph = false;
+            this._dashDuration = 0.3 + Math.random() * 0.2;
           }
         } else {
           this.x += dir.x * this.speed * 0.3 * dt;
           this.y += dir.y * this.speed * 0.3 * dt;
           this._dashTimer -= dt;
           if (this._dashTimer <= 0) {
-            this._isDashing = true;
-            this._dashDuration = 0.3 + Math.random() * 0.2;
+            this._dashTelegraph = true;
+            this._dashTimer = 0.3; // 0.3s telegraph before dash
           }
         }
         break;
@@ -182,6 +192,20 @@ export class Enemy {
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.arc(0, 0, glowR, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // Dash telegraph warning glow
+    if (this._dashTelegraph) {
+      const tPulse = 1 - (this._dashTimer / 0.3); // 0→1
+      const warnR = r + 8 + tPulse * 10;
+      ctx.save();
+      ctx.globalAlpha = (0.3 + tPulse * 0.5) * spawnAlpha;
+      ctx.strokeStyle = '#ef4444';
+      ctx.lineWidth = 2 + tPulse * 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, warnR, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     }

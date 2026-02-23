@@ -96,12 +96,14 @@ export class UI {
     ctx.font = `16px ${F}`;
     ctx.fillText('while (alive) { shoot(code); }', w / 2, h / 2 + 20);
 
-    // Start prompt (blinking green cursor)
-    if (Math.sin(Date.now() / 500) > 0) {
-      ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
-      ctx.font = `bold 18px ${F}`;
-      ctx.fillText('> ' + CONFIG.GAME.START_TEXT + ' _', w / 2, h / 2 + 80);
-    }
+    // Start prompt (pulsing green cursor — always visible)
+    const startPulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(Date.now() / 400));
+    ctx.save();
+    ctx.globalAlpha = startPulse;
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.font = `bold 18px ${F}`;
+    ctx.fillText('> ' + CONFIG.GAME.START_TEXT + ' _', w / 2, h / 2 + 80);
+    ctx.restore();
 
     // Controls hint
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
@@ -179,12 +181,14 @@ export class UI {
       ctx.fillText(statLine, w / 2, sy);
     }
 
-    // Restart prompt
-    if (Math.sin(Date.now() / 500) > 0) {
-      ctx.fillStyle = CONFIG.COLORS.TEXT;
-      ctx.font = `18px ${F}`;
-      ctx.fillText('> Click to restart _', w / 2, h / 2 + 110);
-    }
+    // Restart prompt (pulsing — always visible)
+    const restartPulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(Date.now() / 400));
+    ctx.save();
+    ctx.globalAlpha = restartPulse;
+    ctx.fillStyle = CONFIG.COLORS.TEXT;
+    ctx.font = `18px ${F}`;
+    ctx.fillText('> Click to restart _', w / 2, h / 2 + 110);
+    ctx.restore();
   }
 
   drawWaveAnnouncement(text, alpha) {
@@ -269,11 +273,13 @@ export class UI {
     ctx.fillText('The no-code invasion has been stopped...', w / 2, h / 2 + 50);
     ctx.fillText('...for now.', w / 2, h / 2 + 75);
 
-    if (Math.sin(Date.now() / 500) > 0) {
-      ctx.fillStyle = CONFIG.COLORS.TEXT;
-      ctx.font = `18px ${F}`;
-      ctx.fillText('> Click to play again _', w / 2, h / 2 + 120);
-    }
+    const againPulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(Date.now() / 400));
+    ctx.save();
+    ctx.globalAlpha = againPulse;
+    ctx.fillStyle = CONFIG.COLORS.TEXT;
+    ctx.font = `18px ${F}`;
+    ctx.fillText('> Click to play again _', w / 2, h / 2 + 120);
+    ctx.restore();
   }
 
   _drawHeart(ctx, x, y, size, color) {

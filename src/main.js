@@ -48,6 +48,7 @@ let waveEnemyTotal = 0;
 let upgradeChoices = [];
 let upgradeHover = -1;
 let vignette = null; // { color, alpha, life, maxLife }
+let overlayFade = 0; // 0→1 fade-in for overlay screens
 
 // --- Init ---
 const canvas = document.getElementById('game');
@@ -175,8 +176,8 @@ function addParticle(x, y, color, count = 5) {
   }
 }
 
-function addFloatingText(x, y, text, color, size = 14) {
-  floatingTexts.push({ x, y, text, color, size, life: 1.0, vy: -60 });
+function addFloatingText(x, y, text, color, size = 14, life = 1.0, vy = -60) {
+  floatingTexts.push({ x, y, text, color, size, life, maxLife: life, vy });
 }
 
 function addVignette(color, duration = 0.5) {
@@ -190,12 +191,12 @@ function addDeathAnim(x, y, radius, color, label) {
 function getUpgradeCardIndex(mouse) {
   const w = renderer.width;
   const h = renderer.height;
-  const cardW = 180;
-  const cardH = 200;
+  const cardW = Math.min(220, (w - 80) / 3 - 30);
+  const cardH = 240;
   const gap = 30;
   const totalW = upgradeChoices.length * cardW + (upgradeChoices.length - 1) * gap;
   const startX = (w - totalW) / 2;
-  const startY = h / 2 - cardH / 2 + 20;
+  const startY = h / 2 - cardH / 2 + 10;
 
   for (let i = 0; i < upgradeChoices.length; i++) {
     const cx = startX + i * (cardW + gap);
@@ -227,12 +228,15 @@ function update(dt) {
   }
 
   if (state === STATE.UPGRADE_SELECT) {
-    // Update hover based on mouse position
     upgradeHover = getUpgradeCardIndex(input.mouse);
+    overlayFade = Math.min(overlayFade + dt * 4, 1); // 250ms fade-in
     return;
   }
 
-  if (state === STATE.GAME_OVER || state === STATE.LEVEL_COMPLETE) return;
+  if (state === STATE.GAME_OVER || state === STATE.LEVEL_COMPLETE) {
+    overlayFade = Math.min(overlayFade + dt * 4, 1);
+    return;
+  }
 
   // Hitstop — freeze gameplay but keep rendering
   if (hitstopTimer > 0) {
@@ -393,13 +397,17 @@ function update(dt) {
         e.takeDamage(p.damage);
         p.alive = false;
         addParticle(p.x, p.y, '#89b4fa', 3);
-        addFloatingText(e.x, e.y - e.radius - 5, `-${p.damage}`, '#89b4fa');
+        addFloatingText(e.x, e.y - e.radius - 5, `-${p.damage}`, '#89b4fa', 10, 0.4, -80);
         if (!e.alive) {
           score += e.points;
           player.stats.kills++;
           addDeathAnim(e.x, e.y, e.radius, e.color, e.label);
           addParticle(e.x, e.y, e.color, 8);
-          addFloatingText(e.x, e.y - e.radius - 15, `+${e.points}`, '#f9e2af', 12);
+          addFloatingText(e.x, e.y - e.radius - 15, `+${e.points}`,
+            e.points >= 50 ? '#fab387' : '#f9e2af',
+            e.points >= 50 ? 18 : e.points >= 25 ? 14 : 11,
+            e.points >= 50 ? 1.0 : e.points >= 25 ? 0.8 : 0.6,
+            e.points >= 50 ? -45 : e.points >= 25 ? -60 : -80);
           spawnPowerUp(e.x, e.y);
           audio.play('kill');
           renderer.shake(CONFIG.SCREEN_SHAKE.KILL_INTENSITY, CONFIG.SCREEN_SHAKE.KILL_DURATION);
@@ -416,14 +424,14 @@ function update(dt) {
         boss.takeDamage(p.damage);
         p.alive = false;
         addParticle(p.x, p.y, '#89b4fa', 3);
-        addFloatingText(boss.x, boss.y - boss.radius - 5, `-${p.damage}`, '#89b4fa');
+        addFloatingText(boss.x, boss.y - boss.radius - 5, `-${p.damage}`, '#89b4fa', 12, 0.5, -70);
         if (!boss.alive) {
           score += boss.points;
           player.stats.kills++;
           player.stats.bossKills++;
           addDeathAnim(boss.x, boss.y, boss.radius, boss.color, boss.label);
           addParticle(boss.x, boss.y, boss.color, 35);
-          addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#f9e2af', 22);
+          addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#fab387', 28, 1.5, -30);
           audio.play('bossKill');
           renderer.shake(CONFIG.SCREEN_SHAKE.BOSS_KILL_INTENSITY, CONFIG.SCREEN_SHAKE.BOSS_KILL_DURATION);
           hitstopTimer = CONFIG.HITSTOP.BOSS_KILL_DURATION;
@@ -502,6 +510,7 @@ function update(dt) {
   // Check player death
   if (!player.alive) {
     state = STATE.GAME_OVER;
+    overlayFade = 0;
     if (score > highScore) {
       highScore = score;
       localStorage.setItem('llm-hunter-highscore', String(highScore));
@@ -512,6 +521,7 @@ function update(dt) {
   // Check wave/level completion
   if (boss && !boss.alive) {
     state = STATE.LEVEL_COMPLETE;
+    overlayFade = 0;
     if (score > highScore) {
       highScore = score;
       localStorage.setItem('llm-hunter-highscore', String(highScore));
@@ -526,6 +536,7 @@ function update(dt) {
       // Show upgrade selection between waves
       upgradeChoices = pickRandomUpgrades(3, player);
       upgradeHover = -1;
+      overlayFade = 0;
       state = STATE.UPGRADE_SELECT;
     } else {
       startWave();
@@ -546,7 +557,11 @@ function applyPowerUp(type) {
           player.stats.kills++;
           addDeathAnim(e.x, e.y, e.radius, e.color, e.label);
           addParticle(e.x, e.y, e.color, 8);
-          addFloatingText(e.x, e.y - e.radius - 15, `+${e.points}`, '#f9e2af', 12);
+          addFloatingText(e.x, e.y - e.radius - 15, `+${e.points}`,
+            e.points >= 50 ? '#fab387' : '#f9e2af',
+            e.points >= 50 ? 18 : e.points >= 25 ? 14 : 11,
+            e.points >= 50 ? 1.0 : e.points >= 25 ? 0.8 : 0.6,
+            e.points >= 50 ? -45 : e.points >= 25 ? -60 : -80);
           audio.play('kill');
         }
       }
@@ -558,7 +573,7 @@ function applyPowerUp(type) {
           player.stats.bossKills++;
           addDeathAnim(boss.x, boss.y, boss.radius, boss.color, boss.label);
           addParticle(boss.x, boss.y, boss.color, 35);
-          addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#f9e2af', 22);
+          addFloatingText(boss.x, boss.y - boss.radius - 20, `+${boss.points}`, '#fab387', 28, 1.5, -30);
           audio.play('bossKill');
           addVignette(CONFIG.COLORS.IDENTITY_GREEN, 0.6);
         }
@@ -644,12 +659,19 @@ function render() {
 
   // Floating texts
   for (const ft of floatingTexts) {
+    const lifeRatio = ft.life / (ft.maxLife || 1);
     renderer.ctx.save();
-    renderer.ctx.globalAlpha = Math.min(1, ft.life * 2);
+    renderer.ctx.globalAlpha = Math.min(1, lifeRatio * 2);
     renderer.ctx.fillStyle = ft.color;
     renderer.ctx.font = `bold ${ft.size}px ${CONFIG.FONT}`;
     renderer.ctx.textAlign = 'center';
     renderer.ctx.textBaseline = 'middle';
+    // Outline for boss-tier scores (size >= 28)
+    if (ft.size >= 28) {
+      renderer.ctx.strokeStyle = '#1e1e2e';
+      renderer.ctx.lineWidth = 2;
+      renderer.ctx.strokeText(ft.text, ft.x, ft.y);
+    }
     renderer.ctx.fillText(ft.text, ft.x, ft.y);
     renderer.ctx.restore();
   }
@@ -703,16 +725,41 @@ function render() {
   }
 
   if (state === STATE.UPGRADE_SELECT) {
+    renderer.ctx.save();
+    renderer.ctx.globalAlpha = overlayFade;
     drawUpgradeScreen();
+    renderer.ctx.restore();
   }
 
   if (state === STATE.GAME_OVER) {
+    renderer.ctx.save();
+    renderer.ctx.globalAlpha = overlayFade;
     ui.drawGameOver(score, highScore, player ? player.stats : null);
+    renderer.ctx.restore();
   }
 
   if (state === STATE.LEVEL_COMPLETE) {
+    renderer.ctx.save();
+    renderer.ctx.globalAlpha = overlayFade;
     ui.drawLevelComplete(score, player ? player.stats : null);
+    renderer.ctx.restore();
   }
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const words = text.split(' ');
+  let line = '';
+  for (const word of words) {
+    const test = line + word + ' ';
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line.trim(), x, y);
+      line = word + ' ';
+      y += lineHeight;
+    } else {
+      line = test;
+    }
+  }
+  ctx.fillText(line.trim(), x, y);
 }
 
 function drawUpgradeScreen() {
@@ -728,24 +775,36 @@ function drawUpgradeScreen() {
   ctx.fillStyle = CONFIG.COLORS.TEXT;
   ctx.font = `bold 28px ${CONFIG.FONT}`;
   ctx.textAlign = 'center';
-  ctx.fillText('CHOOSE UPGRADE', w / 2, h / 2 - 130);
+  ctx.fillText('CHOOSE UPGRADE', w / 2, h / 2 - 150);
 
   ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
   ctx.font = `14px ${CONFIG.FONT}`;
-  ctx.fillText('// pick one to continue', w / 2, h / 2 - 100);
+  ctx.fillText('// pick one to continue', w / 2, h / 2 - 120);
 
   // Cards
-  const cardW = 180;
-  const cardH = 200;
+  const cardW = Math.min(220, (w - 80) / 3 - 30);
+  const cardH = 240;
   const gap = 30;
   const totalW = upgradeChoices.length * cardW + (upgradeChoices.length - 1) * gap;
   const startX = (w - totalW) / 2;
-  const startY = h / 2 - cardH / 2 + 20;
+  const startY = h / 2 - cardH / 2 + 10;
 
   for (let i = 0; i < upgradeChoices.length; i++) {
     const up = upgradeChoices[i];
     const cx = startX + i * (cardW + gap);
     const hovered = upgradeHover === i;
+
+    // Hover glow
+    if (hovered) {
+      ctx.save();
+      ctx.shadowColor = CONFIG.COLORS.ACCENT;
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = 'rgba(69,71,90,0.95)';
+      ctx.beginPath();
+      ctx.roundRect(cx, startY, cardW, cardH, 8);
+      ctx.fill();
+      ctx.restore();
+    }
 
     // Card background
     ctx.fillStyle = hovered ? 'rgba(69,71,90,0.95)' : 'rgba(49,50,68,0.85)';
@@ -758,24 +817,24 @@ function drawUpgradeScreen() {
 
     // Icon
     ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : CONFIG.COLORS.TEXT;
-    ctx.font = `bold 34px ${CONFIG.FONT}`;
+    ctx.font = `bold 42px ${CONFIG.FONT}`;
     ctx.textAlign = 'center';
-    ctx.fillText(up.icon, cx + cardW / 2, startY + 55);
+    ctx.fillText(up.icon, cx + cardW / 2, startY + 65);
 
-    // Name
-    ctx.fillStyle = CONFIG.COLORS.TEXT;
+    // Name (accent color for hierarchy)
+    ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : CONFIG.COLORS.ACCENT;
     ctx.font = `bold 14px ${CONFIG.FONT}`;
-    ctx.fillText(up.name, cx + cardW / 2, startY + 100);
+    ctx.fillText(up.name, cx + cardW / 2, startY + 115);
 
-    // Description
-    ctx.fillStyle = CONFIG.COLORS.TEXT;
-    ctx.font = `14px ${CONFIG.FONT}`;
-    ctx.fillText(up.description, cx + cardW / 2, startY + 130);
+    // Description (lighter, smaller, word-wrapped)
+    ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
+    ctx.font = `12px ${CONFIG.FONT}`;
+    wrapText(ctx, up.description, cx + cardW / 2, startY + 145, cardW - 24, 16);
 
     // Number hint
     ctx.fillStyle = hovered ? CONFIG.COLORS.ACCENT : 'rgba(255,255,255,0.2)';
     ctx.font = `13px ${CONFIG.FONT}`;
-    ctx.fillText(`[${i + 1}]`, cx + cardW / 2, startY + cardH - 15);
+    ctx.fillText(`[${i + 1}]`, cx + cardW / 2, startY + cardH - 18);
   }
 }
 
