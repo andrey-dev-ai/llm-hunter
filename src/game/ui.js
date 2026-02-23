@@ -304,7 +304,7 @@ export class UI {
     ctx.restore();
   }
 
-  drawBossWarning(alpha) {
+  drawBossWarning(alpha, bossName) {
     const ctx = this.ctx;
     const w = this.renderer.width;
     const h = this.renderer.height;
@@ -327,12 +327,12 @@ export class UI {
 
     ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
     ctx.font = `14px ${F}`;
-    ctx.fillText('ChatGPT has entered the chat', w / 2, 98);
+    ctx.fillText(`${bossName || 'Boss'} has entered the chat`, w / 2, 98);
 
     ctx.restore();
   }
 
-  drawLevelComplete(score, stats) {
+  drawLevelComplete(score, stats, levelName, nextLevelName) {
     const ctx = this.ctx;
     const w = this.renderer.width;
     const h = this.renderer.height;
@@ -349,29 +349,102 @@ export class UI {
     ctx.font = `bold 42px ${F}`;
     ctx.fillText('LEVEL COMPLETE!', w / 2, h / 2 - 60);
 
+    // Level name
+    if (levelName) {
+      ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
+      ctx.font = `18px ${F}`;
+      ctx.fillText(`"${levelName}" cleared`, w / 2, h / 2 - 25);
+    }
+
     ctx.fillStyle = CONFIG.COLORS.TEXT;
     ctx.font = `24px ${F}`;
-    ctx.fillText(`Score: ${score}`, w / 2, h / 2 - 15);
+    ctx.fillText(`Score: ${score}`, w / 2, h / 2 + 10);
 
     // Stats
     if (stats) {
       ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
       ctx.font = `bold 15px ${F}`;
       const statLine = `Kills: ${stats.kills}  |  Waves: ${stats.wavesCleared}  |  Powerups: ${stats.powerups}`;
-      ctx.fillText(statLine, w / 2, h / 2 + 15);
+      ctx.fillText(statLine, w / 2, h / 2 + 40);
     }
 
-    ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
-    ctx.font = `16px ${F}`;
-    ctx.fillText('The no-code invasion has been stopped...', w / 2, h / 2 + 50);
-    ctx.fillText('...for now.', w / 2, h / 2 + 75);
+    // Next level hint
+    if (nextLevelName) {
+      ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
+      ctx.font = `16px ${F}`;
+      ctx.fillText(`Next: "${nextLevelName}"`, w / 2, h / 2 + 75);
+    }
 
-    const againPulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(Date.now() / 400));
+    const pulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(Date.now() / 400));
     ctx.save();
-    ctx.globalAlpha = againPulse;
+    ctx.globalAlpha = pulse;
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.font = `18px ${F}`;
+    ctx.fillText('> Click to continue _', w / 2, h / 2 + 120);
+    ctx.restore();
+  }
+
+  drawVictoryScreen(score, highScore, stats) {
+    const ctx = this.ctx;
+    const w = this.renderer.width;
+    const h = this.renderer.height;
+
+    ctx.fillStyle = CONFIG.COLORS.OVERLAY_BG;
+    ctx.fillRect(0, 0, w, h);
+
+    // Comment
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.font = `bold 16px ${F}`;
+    ctx.textAlign = 'center';
+    ctx.fillText('// process.exit(0) — all tests passed', w / 2, h / 2 - 120);
+
+    // Title with green glow
+    ctx.save();
+    ctx.shadowColor = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.shadowBlur = 25;
+    ctx.fillStyle = CONFIG.COLORS.IDENTITY_GREEN;
+    ctx.font = `bold 48px ${F}`;
+    ctx.fillText('VICTORY', w / 2, h / 2 - 60);
+    ctx.restore();
+
+    ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
+    ctx.font = `18px ${F}`;
+    ctx.fillText('The Singularity has been defeated.', w / 2, h / 2 - 20);
+
+    // Score
+    ctx.fillStyle = CONFIG.COLORS.TEXT;
+    ctx.font = `24px ${F}`;
+    ctx.fillText(`Final Score: ${score}`, w / 2, h / 2 + 20);
+
+    // High score
+    if (highScore > 0) {
+      ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
+      ctx.font = `16px ${F}`;
+      ctx.fillText(`Best: ${highScore}`, w / 2, h / 2 + 48);
+    }
+
+    if (score >= highScore && score > 0) {
+      ctx.fillStyle = CONFIG.COLORS.REWARD_GOLD;
+      ctx.font = `bold 16px ${F}`;
+      ctx.fillText('NEW HIGH SCORE!', w / 2, h / 2 + 72);
+    }
+
+    // Stats
+    if (stats) {
+      const sy = score >= highScore && score > 0 ? h / 2 + 100 : h / 2 + 75;
+      ctx.fillStyle = CONFIG.COLORS.TEXT_LIGHT;
+      ctx.font = `bold 15px ${F}`;
+      const statLine = `Kills: ${stats.kills}  |  Waves: ${stats.wavesCleared}  |  Bosses: ${stats.bossKills || 0}  |  Powerups: ${stats.powerups}`;
+      ctx.fillText(statLine, w / 2, sy);
+    }
+
+    // Restart prompt
+    const pulse = 0.4 + 0.6 * (0.5 + 0.5 * Math.sin(Date.now() / 400));
+    ctx.save();
+    ctx.globalAlpha = pulse;
     ctx.fillStyle = CONFIG.COLORS.TEXT;
     ctx.font = `18px ${F}`;
-    ctx.fillText('> Click to play again _', w / 2, h / 2 + 120);
+    ctx.fillText('> Click to play again _', w / 2, h / 2 + 140);
     ctx.restore();
   }
 

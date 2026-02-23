@@ -2,22 +2,9 @@ import { CONFIG } from '../config.js';
 import { normalize, subtract, distance } from '../utils/vector.js';
 import { MINION_TYPES } from '../data/enemies.js';
 
-const BOSS_PHRASES = [
-  'As an AI...',
-  "I can't do that",
-  'Let me help you',
-  'Hallucinating...',
-  'Context window full',
-  'Rate limited!',
-];
-
-const ENRAGE_PHRASES = [
-  'MAXIMUM TOKENS!',
-  'FINE-TUNING...',
-  'OVERFIT MODE!',
-  'TEMPERATURE: 2.0',
-];
-
+// Fallback phrases if boss data doesn't provide them
+const DEFAULT_PHRASES = ['...', '???', '!!!'];
+const DEFAULT_ENRAGE_PHRASES = ['OVERLOAD!', 'MAX POWER!'];
 const PROMPT_TEXTS = ['>_', '>>>', '$_', '...'];
 
 export class Boss {
@@ -33,6 +20,9 @@ export class Boss {
     this.radius = data.radius || 50;
     this.color = data.color || '#10a37f';
     this.label = data.label || data.name;
+    this._phrases = data.phrases || DEFAULT_PHRASES;
+    this._enragePhrases = data.enragePhrases || DEFAULT_ENRAGE_PHRASES;
+    this._minionType = data.minionType || 'TOKEN';
     this.alive = true;
     this.isBoss = true;
     this.enraged = false;
@@ -42,10 +32,10 @@ export class Boss {
     this._currentPhrase = '';
     this._phraseAlpha = 0;
     this._shootTimer = 0;
-    this._chargeTimer = 0; // telegraph before shooting
+    this._chargeTimer = 0;
     this._charging = false;
     this._minionTimer = CONFIG.BOSS.MINION_INTERVAL;
-    this.pendingMinions = []; // main.js reads and spawns these
+    this.pendingMinions = [];
     this.projectiles = [];
   }
 
@@ -83,7 +73,7 @@ export class Boss {
     // Show random phrases
     this._phraseTimer -= dt;
     if (this._phraseTimer <= 0) {
-      const phrases = this.enraged ? ENRAGE_PHRASES : BOSS_PHRASES;
+      const phrases = this.enraged ? this._enragePhrases : this._phrases;
       this._currentPhrase = phrases[Math.floor(Math.random() * phrases.length)];
       this._phraseAlpha = 1;
       this._phraseTimer = this.enraged ? 1.5 + Math.random() * 2 : 2 + Math.random() * 3;
@@ -136,10 +126,11 @@ export class Boss {
     if (this.enraged && this.alive) {
       this._minionTimer -= dt;
       if (this._minionTimer <= 0) {
-        // Spawn 2-3 token minions
+        // Spawn 2-3 minions of boss-specific type
         const count = 2 + Math.floor(Math.random() * 2);
+        const mType = MINION_TYPES[this._minionType] || MINION_TYPES.TOKEN;
         for (let i = 0; i < count; i++) {
-          this.pendingMinions.push({ ...MINION_TYPES.TOKEN });
+          this.pendingMinions.push({ ...mType });
         }
         this._minionTimer = CONFIG.BOSS.MINION_INTERVAL;
       }

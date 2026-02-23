@@ -24,6 +24,7 @@ const STATE = {
   UPGRADE_SELECT: 'upgrade_select',
   GAME_OVER: 'game_over',
   LEVEL_COMPLETE: 'level_complete',
+  VICTORY: 'victory',
 };
 
 let state = STATE.MENU;
@@ -99,8 +100,10 @@ function startWave() {
       [spawnQueue[i], spawnQueue[j]] = [spawnQueue[j], spawnQueue[i]];
     }
     spawnTimer = 0;
-    announceText = `Wave ${currentWave + 1}`;
-    announceTimer = 1.2;
+    announceText = currentWave === 0
+      ? `${level.name} — Wave 1`
+      : `Wave ${currentWave + 1}`;
+    announceTimer = currentWave === 0 ? 2.0 : 1.2;
     state = STATE.PLAYING;
   } else {
     waveEnemyTotal = 0;
@@ -235,7 +238,7 @@ function update(dt) {
     return;
   }
 
-  if (state === STATE.GAME_OVER || state === STATE.LEVEL_COMPLETE) {
+  if (state === STATE.GAME_OVER || state === STATE.LEVEL_COMPLETE || state === STATE.VICTORY) {
     overlayFade = Math.min(overlayFade + dt * 4, 1);
     return;
   }
@@ -333,7 +336,12 @@ function update(dt) {
 
   // Check wave/level completion
   if (boss && !boss.alive) {
-    state = STATE.LEVEL_COMPLETE;
+    // Check if there's a next level
+    if (currentLevel + 1 < LEVELS.length) {
+      state = STATE.LEVEL_COMPLETE;
+    } else {
+      state = STATE.VICTORY;
+    }
     overlayFade = 0;
     saveHighScore();
     return;
@@ -464,7 +472,8 @@ function render() {
   }
 
   if (state === STATE.BOSS_WARNING) {
-    ui.drawBossWarning(Math.min(1, announceTimer / 1.5));
+    const level = LEVELS[currentLevel];
+    ui.drawBossWarning(Math.min(1, announceTimer / 1.5), level.boss.name);
   }
 
   if (state === STATE.UPGRADE_SELECT) {
@@ -482,9 +491,18 @@ function render() {
   }
 
   if (state === STATE.LEVEL_COMPLETE) {
+    const level = LEVELS[currentLevel];
+    const nextLevel = LEVELS[currentLevel + 1];
     ctx.save();
     ctx.globalAlpha = overlayFade;
-    ui.drawLevelComplete(score, player ? player.stats : null);
+    ui.drawLevelComplete(score, player ? player.stats : null, level.name, nextLevel ? nextLevel.name : null);
+    ctx.restore();
+  }
+
+  if (state === STATE.VICTORY) {
+    ctx.save();
+    ctx.globalAlpha = overlayFade;
+    ui.drawVictoryScreen(score, highScore, player ? player.stats : null);
     ctx.restore();
   }
 }
@@ -589,7 +607,19 @@ function handleClick() {
       audio.play('powerup');
       startWave();
     }
-  } else if (state === STATE.GAME_OVER || state === STATE.LEVEL_COMPLETE) {
+  } else if (state === STATE.LEVEL_COMPLETE) {
+    // Advance to next level (keep player, score, upgrades)
+    currentLevel++;
+    currentWave = 0;
+    enemies = [];
+    projectiles = [];
+    powerups = [];
+    boss = null;
+    bossWasEnraged = false;
+    fx.reset();
+    hitstopTimer = 0;
+    startWave();
+  } else if (state === STATE.GAME_OVER || state === STATE.VICTORY) {
     startGame();
   }
 }
